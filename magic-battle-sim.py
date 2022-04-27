@@ -60,21 +60,23 @@ class Game:
     cmdnotes = [
         ["help", "Show this help text."],
         ["quit", "Quit the game."],
-        ["skills", "List your skills (things you can do)."]
+        ["skills", "List your skills (things you can do)."],
     ]
 
     def __init__(self):
         # probably want a system to set up locations
         self.skills = {
             "look": Skill("look", skill_look, "Lets you look at things."),
-            "attack": Skill("attack", skill_attack, "Lets you attack things.", synonyms=["hit", "a"])
+            "attack": Skill("attack", skill_attack, "Lets you attack things.", synonyms=["hit"]),
+            # "zap": Skill("zap", skill_zap, "Attack something with magic."),
+            "repeat": Skill("repeat", skill_repeat, "Do whatever you just did again.", synonyms=["r!"])
         }
     
         player_stats = ActorStats(might=100, acuity=100, gymnasia=12)
 
         self.actors = [
             Actor("Monster", description="It looks scary."), 
-            Actor("Hero", synonyms=["me", "self", "myself"], description="You look nice today.", stats=player_stats, is_player=True, skills=[self.skills["look"], self.skills["attack"]])
+            Actor("Hero", synonyms=["me", "self", "myself"], description="You look nice today.", stats=player_stats, is_player=True, skills=[self.skills["look"], self.skills["attack"], self.skills["repeat"]])
         ]
         self.quit = False
         self.commands = {
@@ -82,6 +84,7 @@ class Game:
             "skills": self.show_skills,
             "quit": self.quit_fn
         }
+        self.last_input = None
 
     def help(self, args : list[str]):
         tbl = Table(title="Commands")
@@ -149,7 +152,9 @@ class Game:
         if len(split) > 0 and split[0] in self.commands:
             self.commands[split[0]](split)
         elif len(split) > 0 and player.has_skill(split[0]): # need a mechanism to build valid skills into a dict
-            player.get_skill(split[0]).on_use(split, Context(player, self))
+            can_buffer = player.get_skill(split[0]).on_use(split, Context(player, self))
+            if can_buffer:
+                self.last_input = raw
         else:
             self.stub()
 
@@ -170,7 +175,7 @@ def skill_look(args : list[str], context : Context):
     if len(args) < 2:
         names = [f"[bold]{actor.name}[/]" for actor in game.actors]
         print(f"Here you can see { ', '.join(names) }.")
-        return
+        return True
 
     printed = False
     for actor in game.actors:
@@ -180,6 +185,7 @@ def skill_look(args : list[str], context : Context):
             break
     if not printed:
         print("You can't see that!")
+    return True
 
 def skill_attack(args : list[str], context : Context):
     game = context.game
@@ -187,22 +193,36 @@ def skill_attack(args : list[str], context : Context):
     if len(args) < 2:
         print("You need to choose a target! (Try [cyan]look[/].)")
         print("[cyan]attack[/cyan] ACTOR")
-        return
+        return True
     target = game.get_actor(args[1])
-    if target != None:
-        hit_raw = float(actor.stats.acuity) / float(target.stats.gymnasia)
-        hit_dice = math.floor(hit_raw)
-        fractional_hit = hit_raw % 1
-        if(random.random() < fractional_hit):
-            hit_dice += 1
-        dice_size = math.floor(float(actor.stats.might) / 2)
-        damage = 0
-        for die in range(hit_dice):
-            damage += random.randint(1, dice_size)
-        target.stats.cur_hp -= damage
-        print(f"You bash the {target.name} using {hit_dice}d{dice_size}, dealing {damage}!")
-        return
-    print("I can't see that target.")
+    if target == None:
+        print("I can't see that target.")
+        return True
+    
+    hit_raw = float(actor.stats.acuity) / float(target.stats.gymnasia)
+    hit_dice = math.floor(hit_raw)
+    fractional_hit = hit_raw % 1
+    if(random.random() < fractional_hit):
+        hit_dice += 1
+    dice_size = math.floor(float(actor.stats.might) / 2)
+    damage = 0
+    for die in range(hit_dice):
+        damage += random.randint(1, dice_size)
+    target.stats.cur_hp -= damage
+    print(f"You bash the {target.name} using {hit_dice}d{dice_size}, dealing {damage}!")
+    return True
+    
+
+def skill_repeat(args : list[str], context : Context):
+    if context.game.last_input == None:
+        print("[aqua]Cannot repeat that input.[/aqua]")
+        return False
+    repeat_no = 1
+    if len(args) > 1 and args[1].isdigit() and int(args[1]) > 0:
+        repeat_no = int(args[1])
+    for i in range(repeat_no):
+        context.game.parse_input(context.game.last_input)
+    return False
 
 def main():
     game = Game()
