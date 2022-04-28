@@ -8,8 +8,6 @@ from typing import Union
 import random
 
 
-
-
 @dataclass
 class ActorStats:
     max_hp : int = 12
