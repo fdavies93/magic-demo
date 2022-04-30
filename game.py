@@ -49,6 +49,7 @@ def show_skills(game : "Game"):
 def do_nothing(game: "Game"):
     pass
 
+
 class Game:
 
     _default_commands = {"help": ("See this help message", help), "quit": ("Exit the game.", exit_game), "skills": ("Show your available skills (things you can do).", show_skills)}
@@ -62,8 +63,33 @@ class Game:
         self._reaction_parse_dict : dict[str, list[str]] = dict()
         self.exit : bool = False
 
+    def split_args(raw: str) -> list[str]:
+        i = 0
+        start = 0
+        buffer = ""
+        quoting = False
+        arg_list = []
+        while i < len(raw):
+            buffer += raw[i]
+            if raw[i] == " " and not quoting:
+                arg_list.append(buffer[:-1])
+                start = i+1
+                buffer = ""
+            if raw[i] in "\"\'" and not quoting:
+                quoting = True
+                start = i
+                buffer = ""
+            elif raw[i] in "\"\'" and quoting:
+                quoting = False
+                buffer = buffer[:-1]
+            i += 1
+        if len(buffer) > 0:
+            arg_list.append(buffer)
+        return arg_list
+
+
     def parse(self, raw : str):
-        split = raw.split()
+        split = Game.split_args(raw)
         if len(split) > 0 and split[0] in Game._default_commands:
             Game._default_commands[split[0]][1](self)
         elif len(split) > 0 and split[0] in self._skill_parse_dict:
@@ -90,6 +116,9 @@ class Game:
         self._skill_parse_dict[skill.name.lower()] = skill.id
         for synonym in skill.synonyms:
             self._skill_parse_dict[synonym.lower()] = skill.id
+
+    def add_object(self, obj : GameObject):
+        self.game_objects[obj.id] = obj
     
     def add_reaction(self, reaction : Reaction):
         self.reactions[reaction.id] = reaction
@@ -99,6 +128,15 @@ class Game:
         else:
             reaction_list = [reaction.id]
         self._reaction_parse_dict[reaction.reacting_to] = reaction_list
+
+    def get_reactions(self, reacts_to : str):
+        skill_id = self._skill_parse_dict.get(reacts_to)
+        if skill_id == None:
+            return []
+        reaction_ids = self._reaction_parse_dict.get(skill_id)
+        if reaction_ids == None:
+            return []
+        return reaction_ids
 
     def react_to(self, actor_id, skill_id, target_id):
         target : GameObject = self.get_by_id(target_id)
@@ -127,4 +165,5 @@ class Game:
         print("[bright_cyan]Try help if you need help.[/bright_cyan]")
         while not self.exit:
             raw = input("> ")
+            # print(Game.split_args(raw))
             self.parse(raw)
