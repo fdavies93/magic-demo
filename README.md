@@ -22,9 +22,6 @@ Hard-programming features like "look" into a framework requires objects to have 
 * game.py is a basic demo designed to show how to implement game concepts using magic-rpg.py. It also serves as the main way of testing new features.
 
 ## Current Priorities - Framework
-* Refactoring the I/O system from basic Python with Rich to use ncurses. This will allow non-blocking input and lay the groundwork for more involved emergent gameplay and smart NPCs.
-    * Ideally fully decoupling I/O from the specific technology used for I/O. This will allow the framework to host MUDs with proper work put into integrating it with web technology.
-* Implementing a tick system to allow NPCs to do stuff by themselves, rather than just reacting to player input.
 * Refactoring skills to allow skills to be used by NPCs.
 * Refactoring skill help system to allow nesting of skill types (probably instantaneous vs. time-consuming in the reference implementation)
 * Adding a save / load system for current game state (but not skills, reactions, or minds).

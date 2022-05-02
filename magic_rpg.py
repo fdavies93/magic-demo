@@ -162,7 +162,7 @@ class Game:
         ]
 
         if len(final_targets) > 1:
-            print(f"[red]Warning: more than one reaction to {skill_id} in {actor_id}. Only executing the first one.[/red]")
+            self.io.add_output(f"Warning: more than one reaction to {skill_id} in {actor_id}. Only executing the first one.")
         if len(final_targets) > 0:
             return final_targets[0].callback(self, actor_id, target_id)
         return None
@@ -171,7 +171,7 @@ class Game:
         # setup code
         with CursesIO() as self.io:
             self.before_start(self)
-            print("[bright_cyan]Try help if you need help.[/bright_cyan]")
+            self.io.add_output("Try help if you need help.")
             while not self.exit:
                 # raw = input("> ")
                 self.io.poll()

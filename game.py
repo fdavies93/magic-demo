@@ -24,16 +24,17 @@ def skill_look(game : "Game", args, skill_id, caller_id): # that info can kind o
     if len(args) > 1:
         for obj in object_datas:
             if obj["name"].lower() == args[1].lower() or (obj["synonyms"] != None and args[1].lower() in obj["synonyms"]):
-                print(f"[yellow]{obj['name']}[/]")
-                print(f"{obj['description']}")
+                game.io.add_output(f"{obj['name']}")
+                game.io.add_output(f"")
+                game.io.add_output(f"{obj['description']}")
                 return
     object_string = ', '.join([ obj["name"] for obj in object_datas ])
-    print( f"[yellow]{location_data['name']}[/]")
-    print( f"{location_data['description']} You can see {object_string} here.")
+    game.io.add_output(f"{location_data['name']}")
+    game.io.add_output(f"{location_data['description']} You can see {object_string} here.")
 
 def skill_create(game : "Game", args, skill_id, caller_id):
     if len(args) < 3:
-        print("[bright_cyan]create[/] NAME DESCRIPTION")
+        game.io.add_output("create NAME DESCRIPTION")
         return
     caller : GameObject() = game.get_by_id(caller_id)
     location = game.get_by_id(caller.states["location"])
@@ -56,7 +57,7 @@ def game_setup(game : Game):
     create_skill = Skill("create", on_parsed=skill_create)
     look_reaction_visible = Reaction(look_skill.id, reaction_look_visible)
 
-    room = create_object(game, "A room", "A small room")
+    room = create_object(game, "A room", "A small room.")
     player = create_object(game, "Hero", "You look very handsome.", room.id)
     box = create_object(game, "Box", "It's a box", room.id)
     
