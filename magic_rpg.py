@@ -167,6 +167,13 @@ class Game:
             return final_targets[0].callback(self, actor_id, target_id)
         return None
 
+    def get_skill_id(self, skill_name):
+        return self._skill_parse_dict.get(skill_name)
+
+    def use_skill(self, caller_id, skill_name, args = []):
+        skill_id = self._skill_parse_dict.get(skill_name)
+        self.skills.get(skill_id).on_parsed(self, [skill_name] + args, skill_id, caller_id)
+
     def start(self):
         # setup code
         with CursesIO() as self.io:

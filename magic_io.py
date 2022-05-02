@@ -112,6 +112,11 @@ class CursesIO():
         self.output_buffer.append(output)
         self.can_refresh_output = True
 
+    def clear_output(self):
+        self.output_buffer = []
+        self.cursor_location = 0
+        self.can_refresh_output = True
+
     def refresh_output(self):
         self.output_scr.clear()
         buf_len = len(self.output_buffer)
