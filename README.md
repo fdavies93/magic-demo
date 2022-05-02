@@ -28,6 +28,5 @@ Hard-programming features like "look" into a framework requires objects to have 
 * Writing I/O for web hosted version.
 
 ## Current Priorities - Game.py
-* Implementing exit-type objects which other objects can "go" to in order to change their current location.
 * Implementing basic combat between actors using a stat system.
 * Implementing a basic inventory and item system.
