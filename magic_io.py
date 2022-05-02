@@ -6,6 +6,10 @@ import time
 class CursesIO():
 
     @staticmethod
+    def push_to_input_queue(io_ : "CursesIO", input_ : str):
+        io_.input_queue.append(input_)
+
+    @staticmethod
     def on_enter(io_):
         io_.input_history.append(io_.input_buffer)
         if io_.on_input != None:
@@ -27,7 +31,7 @@ class CursesIO():
 
     @staticmethod
     def on_up(io_):
-        if io_.scrolling and io_.cursor_location < (len(io_.output_buffer) - (curses.LINES - 2)):
+        if io_.scrolling and io_.cursor_location < (len(io_.output_buffer) - (curses.LINES - 1)):
             io_.cursor_location += 1
             io_.can_refresh_output = True
     
@@ -38,6 +42,11 @@ class CursesIO():
             io_.can_refresh_output = True
 
     def __init__(self, input_prefix = "> ", on_input = None, logfile = None): # i.e. 1/32 of a second
+        if on_input == None:
+            self.on_input = CursesIO.push_to_input_queue
+        else:
+            self.on_input = on_input
+        
         self.stdscr = None
         self.msg_buffer = []
         self.quit = False
@@ -45,11 +54,11 @@ class CursesIO():
         self.input_scr = None
         self.input_buffer = ""
         self.input_prefix = "> "
+        self.input_queue = [] # for things you want other components to read
         self.output_buffer = []
         self.input_history = []
         self.history_pos = -1
         self.can_refresh_output = False
-        self.on_input = on_input
         self.logfile = logfile
         self.cursor_location = 0
         self.scrolling = False
@@ -94,6 +103,10 @@ class CursesIO():
         self.output_scr.refresh()
         self.input_scr.refresh()
         
+    def pop_input(self):
+        if len(self.input_queue) > 0:
+            return self.input_queue.pop(0)
+        return None
 
     def add_output(self, output):
         self.output_buffer.append(output)

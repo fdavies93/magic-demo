@@ -3,6 +3,8 @@ from rich.table import Table
 import uuid
 from typing import Callable, Union, Any
 from curses import wrapper
+from magic_io import CursesIO
+import time
 
 class GameObject:
     def __init__(self):
@@ -27,25 +29,29 @@ class Reaction:
 
 
 def help(game : "Game"):
-    tbl = Table(title="Commands")
-    tbl.add_column("Command", justify="center", style="bright_cyan")
-    tbl.add_column("Description", justify="center")
+    game.io.add_output("HELP")
     for cmd in Game._default_commands:
-        tbl.add_row(cmd, Game._default_commands[cmd][0])
-    print(tbl)
+        game.io.add_output(f"{cmd} | {Game._default_commands[cmd][0]}")
+    # tbl = Table(title="Commands")
+    # tbl.add_column("Command", justify="center", style="bright_cyan")
+    # tbl.add_column("Description", justify="center")
+    # for cmd in Game._default_commands:
+    #     tbl.add_row(cmd, Game._default_commands[cmd][0])
+    # print(tbl)
 
 def exit_game(game : "Game"):
     game.exit = True
 
 def show_skills(game : "Game"):
     player : GameObject = game.game_objects[game.player_id]
-    tbl = Table(title="Skills")
-    tbl.add_column("Skill", justify="center", style="bright_cyan")
-    tbl.add_column("Description", justify="center")
+    # tbl = Table(title="Skills")
+    # tbl.add_column("Skill", justify="center", style="bright_cyan")
+    # tbl.add_column("Description", justify="center")
+    game.io.add_output("SKILLS")
     for skill_id in player.skills:
         skill : Skill = game.skills.get(skill_id)
-        tbl.add_row(skill.name, skill.description)
-    print(tbl)
+        game.io.add_output(f"{skill.name} | {skill.description}")
+    # print(tbl)
     
 def do_nothing(game: "Game"):
     pass
@@ -55,7 +61,7 @@ class Game:
 
     _default_commands = {"help": ("See this help message", help), "quit": ("Exit the game.", exit_game), "skills": ("Show your available skills (things you can do).", show_skills)}
 
-    def __init__(self):
+    def __init__(self, tick_time = 0.0625):
         self.game_objects : dict[GameObject] = dict()
         self.skills : dict[str, Skill] = dict()
         self.reactions : dict[str, Reaction] = dict()
@@ -63,6 +69,7 @@ class Game:
         self._skill_parse_dict : dict[str, str] = dict()
         self._reaction_parse_dict : dict[str, list[str]] = dict()
         self.exit : bool = False
+        self.tick_time = tick_time
 
     def split_args(raw: str) -> list[str]:
         i = 0
@@ -162,9 +169,14 @@ class Game:
 
     def start(self):
         # setup code
-        self.before_start(self)
-        print("[bright_cyan]Try help if you need help.[/bright_cyan]")
-        while not self.exit:
-            raw = input("> ")
-            # print(Game.split_args(raw))
-            self.parse(raw)
+        with CursesIO() as self.io:
+            self.before_start(self)
+            print("[bright_cyan]Try help if you need help.[/bright_cyan]")
+            while not self.exit:
+                # raw = input("> ")
+                self.io.poll()
+                next_input = self.io.pop_input()
+                if next_input != None:
+                # print(Game.split_args(raw))
+                    self.parse(next_input)
+                time.sleep(self.tick_time)
