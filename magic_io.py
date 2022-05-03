@@ -1,7 +1,24 @@
 import curses
 from curses import ascii
 import time
+from typing import Union
+from dataclasses import dataclass
+from enum import IntEnum
 
+class COLOR(IntEnum):
+    BLACK = 0,
+    RED = 1,
+    GREEN = 2,
+    YELLOW = 3,
+    BLUE = 4,
+    MAGENTA = 5,
+    CYAN = 6,
+    WHITE = 7
+
+@dataclass
+class RichText():
+    text : str
+    color : int = 7 # curses.color_pair(7), i.e. white
 
 class CursesIO():
 
@@ -89,6 +106,11 @@ class CursesIO():
     def init_windows(self):
         # general curses setup
         self.stdscr = curses.initscr()
+        curses.start_color()
+
+        for color in range(1,9):
+            curses.init_pair(color, color, curses.COLOR_BLACK)
+
         curses.noecho()
         curses.cbreak()
         self.stdscr.keypad(True)
@@ -108,7 +130,7 @@ class CursesIO():
             return self.input_queue.pop(0)
         return None
 
-    def add_output(self, output):
+    def add_output(self, output : Union[str, list, RichText]):
         self.output_buffer.append(output)
         self.can_refresh_output = True
 
@@ -117,13 +139,31 @@ class CursesIO():
         self.cursor_location = 0
         self.can_refresh_output = True
 
+    def process_output(self, output : Union[str, RichText]):
+        if isinstance(output, str):
+            self.output_scr.addstr(output)
+        elif isinstance(output, RichText):
+            self.output_scr.addstr(output.text, curses.color_pair(int(output.color)))
+
+    def process_output_line(self, output : Union[str, list, RichText], line_index):
+        if line_index != 0:
+            self.output_scr.addstr('\n')
+        if isinstance(output, str) or isinstance(output, RichText):
+            self.process_output(output)
+        elif isinstance(output, list):
+            for o in output:
+                self.process_output(o)
+
     def refresh_output(self):
         self.output_scr.clear()
         buf_len = len(self.output_buffer)
         start = (buf_len + 1 - self.cursor_location) - curses.LINES
         if start < 0: start = 0
         to_print = self.output_buffer[ start : buf_len - self.cursor_location ]
-        self.output_scr.addstr("\n".join(to_print))
+
+        for (i, output) in enumerate(to_print):
+            self.process_output_line(output, i)
+
         self.output_scr.refresh()
         self.can_refresh_output = False
         self.input_scr.refresh()

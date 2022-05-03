@@ -3,6 +3,7 @@ from rich.table import Table
 import uuid
 from typing import Callable, Union, Any
 from magic_rpg import *
+from magic_io import RichText, COLOR
 
 def create_object(game : Game, name: str, description: str, location: str = None):
     new_obj = GameObject()
@@ -32,12 +33,11 @@ def skill_look(game : "Game", args, skill_id, caller_id): # that info can kind o
     if len(args) > 1:
         for obj in object_datas:
             if obj["name"].lower() == args[1].lower() or (obj["synonyms"] != None and args[1].lower() in obj["synonyms"]):
-                game.io.add_output(f"{obj['name']}")
-                game.io.add_output(f"")
+                game.io.add_output(RichText(obj['name'], COLOR.YELLOW))
                 game.io.add_output(f"{obj['description']}")
                 return
     object_string = ', '.join([ obj["name"] for obj in object_datas ])
-    game.io.add_output(f"{location_data['name']}")
+    game.io.add_output(RichText(location_data['name'], COLOR.YELLOW))
     game.io.add_output(f"{location_data['description']} You can see {object_string} here.")
 
 def skill_create(game : "Game", args, skill_id, caller_id):
