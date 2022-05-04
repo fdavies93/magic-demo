@@ -196,7 +196,7 @@ class CursesIO():
         if (key_ascii != -1):
             if key_ascii in self.key_presses:
                 self.key_presses.get(key_ascii)(self)
-            elif not self.scrolling:
+            elif not self.scrolling and (len(self.input_prefix) + len(self.input_buffer) + len(key_str) < curses.COLS - 1):
                 self.input_buffer += key_str
             self.input_scr.clear()
             input_str = self.input_prefix
