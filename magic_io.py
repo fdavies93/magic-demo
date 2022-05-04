@@ -19,6 +19,12 @@ class COLOR(IntEnum):
 class RichText():
     text : str
     color : int = 7 # curses.color_pair(7), i.e. white
+    standout : bool = False
+    bold : bool = False
+    blink : bool = False
+    dim : bool = False
+    reverse : bool = False
+    underline : bool = False
 
 class CursesIO():
 
@@ -143,7 +149,20 @@ class CursesIO():
         if isinstance(output, str):
             self.output_scr.addstr(output)
         elif isinstance(output, RichText):
-            self.output_scr.addstr(output.text, curses.color_pair(int(output.color)))
+            modifier = curses.color_pair(int(output.color))
+            if output.bold:
+                modifier = modifier | curses.A_BOLD
+            if output.standout:
+                modifier = modifier | curses.A_STANDOUT
+            if output.dim:
+                modifier = modifier | curses.A_DIM
+            if output.reverse:
+                modifier = modifier | curses.A_REVERSE
+            if output.blink:
+                modifier = modifier | curses.A_BLINK
+            if output.underline:
+                modifier = modifier | curses.A_UNDERLINE
+            self.output_scr.addstr(output.text, modifier)
 
     def process_output_line(self, output : Union[str, list, RichText], line_index):
         if line_index != 0:

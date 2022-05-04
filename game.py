@@ -33,11 +33,11 @@ def skill_look(game : "Game", args, skill_id, caller_id): # that info can kind o
     if len(args) > 1:
         for obj in object_datas:
             if obj["name"].lower() == args[1].lower() or (obj["synonyms"] != None and args[1].lower() in obj["synonyms"]):
-                game.io.add_output(RichText(obj['name'], COLOR.YELLOW))
+                game.io.add_output(RichText(obj['name'], COLOR.YELLOW,underline=True, bold=True))
                 game.io.add_output(f"{obj['description']}")
                 return
     object_string = ', '.join([ obj["name"] for obj in object_datas ])
-    game.io.add_output(RichText(location_data['name'], COLOR.YELLOW))
+    game.io.add_output(RichText(location_data['name'], COLOR.YELLOW, underline=True, bold=True))
     game.io.add_output(f"{location_data['description']} You can see {object_string} here.")
 
 def skill_create(game : "Game", args, skill_id, caller_id):
