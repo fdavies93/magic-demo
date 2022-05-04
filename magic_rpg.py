@@ -3,7 +3,7 @@ from rich.table import Table
 import uuid
 from typing import Callable, Union, Any
 from curses import wrapper
-from magic_io import CursesIO
+from magic_io import CursesIO, RichText, COLOR
 import time
 
 class GameObject:
@@ -178,7 +178,7 @@ class Game:
         # setup code
         with CursesIO() as self.io:
             self.before_start(self)
-            self.io.add_output("Try help if you need help.")
+            self.io.add_output(["Try ", RichText("help", color=int(COLOR.CYAN), bold=True), " if you need help."])
             while not self.exit:
                 # raw = input("> ")
                 self.io.poll()
