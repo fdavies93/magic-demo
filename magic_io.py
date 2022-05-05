@@ -4,6 +4,7 @@ import time
 from typing import Union
 from dataclasses import dataclass
 from enum import IntEnum
+from math import ceil
 
 class COLOR(IntEnum):
     BLACK = 0,
@@ -25,6 +26,11 @@ class RichText():
     dim : bool = False
     reverse : bool = False
     underline : bool = False
+
+@dataclass
+class LineSplitData:
+    lines : list[str]
+    offset : int 
 
 class CursesIO():
 
@@ -163,6 +169,68 @@ class CursesIO():
             if output.underline:
                 modifier = modifier | curses.A_UNDERLINE
             self.output_scr.addstr(output.text, modifier)
+
+    def get_string_repr(self, output : Union[str, list, RichText]) -> str:
+        if isinstance(output, str):
+            return output
+        if isinstance(output, RichText):
+            return output.text
+        if isinstance(output, list):
+            return ''.join([ self.get_string_repr(o) for o in output ])
+
+    def get_output_lines(self, output : Union[str, list, RichText]) -> int:
+        # get the lines used by a given output
+        lines = 1
+        str_ : str = get_string_repr(output)
+        lines += str_.count("\n")
+        str_ : str = str_.replace("\n","")
+        total_len = len(str_)
+        lines += math.ceil(float(total_len) / float(curses.COLS))
+        return lines
+
+    @staticmethod
+    def split_to_lines_simple(output : Union[str, RichText], offset: int = 0) -> LineSplitData:
+        # offset enables this working in lists
+        if isinstance(output, RichText):
+            raw_text : str = output.text
+        elif isinstance(output, str):
+            raw_text : str = output
+        
+        out = []
+        chars_no_line_break = offset
+        last_break = 0
+        for i, char in enumerate(raw_text):
+            chars_no_line_break += 1
+            if chars_no_line_break >= curses.COLS-2 or char == "\n":
+                split_text = raw_text[last_break:i+1]
+                last_break = i+1
+                chars_no_line_break = 0
+                if isinstance(output, RichText):
+                    out.append(RichText(split_text, color=output.color, standout=output.standout, bold=output.bold, blink=output.blink, dim=output.dim, reverse=output.reverse, underline=output.underline))
+                elif isinstance(output, str):
+                    out.append(split_text)
+        
+        split_text = raw_text[last_break:]
+        
+        if isinstance(output, RichText):
+            out.append(RichText(split_text, color=output.color, standout=output.standout, bold=output.bold, blink=output.blink, dim=output.dim, reverse=output.reverse, underline=output.underline))
+        elif isinstance(output, str):
+            out.append(split_text)
+
+        return LineSplitData(out,offset)
+    
+    @staticmethod
+    def split_to_lines(output: Union[str, RichText, list]):
+        if isinstance(output, RichText) or isinstance(output, str):
+            return [ line for line in CursesIO.split_to_lines_simple(output).lines ]
+        elif isinstance(output, list):
+            current = []
+            offset = 0
+            for o in output:
+                cur_split = CursesIO.split_to_lines_simple(o, offset=offset)
+                current.extend(cur_split.lines)
+                offset = cur_split.offset
+            return current
 
     def process_output_line(self, output : Union[str, list, RichText], line_index):
         if line_index != 0:
