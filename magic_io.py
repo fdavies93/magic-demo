@@ -96,6 +96,8 @@ class CursesIO():
             ord('\n') : CursesIO.on_enter,
             ord('\r') : CursesIO.on_enter,
             curses.KEY_BACKSPACE : CursesIO.on_backspace,
+            ord('\b') : CursesIO.on_backspace,
+            ord('\x7f'): CursesIO.on_backspace,
             ord('\t') : CursesIO.on_tab,
             curses.KEY_UP : CursesIO.on_up,
             curses.KEY_DOWN : CursesIO.on_down
