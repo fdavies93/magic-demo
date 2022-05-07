@@ -60,7 +60,7 @@ class CursesIO():
 
     @staticmethod
     def on_up(io_):
-        if io_.scrolling and io_.cursor_location < (len(io_.output_buffer) - (curses.LINES - 1)):
+        if io_.scrolling and io_.cursor_location < (CursesIO.get_buffer_length(io_.output_buffer) - (curses.LINES - 1)):
             io_.cursor_location += 1
             io_.can_refresh_output = True
     
@@ -200,6 +200,8 @@ class CursesIO():
         elif isinstance(output, str):
             out.append(split_text)
 
+        offset = chars_no_line_break
+
         return LineSplitData(out,offset)
     
     @staticmethod
@@ -247,9 +249,6 @@ class CursesIO():
             if cur_pos + len(o) >= end_pos and len(end) == 1:
                 end = (i, end_pos - cur_pos)
             cur_pos += len(o)
-
-        print(start)
-        print(end)
 
         # extract data
         if start[0] == end[0]:
@@ -300,9 +299,8 @@ class CursesIO():
         self.output_scr.clear()
 
         expanded_buffer = []
-        
 
-        buf_len = sum( [len(o) for o in self.output_buffer] )
+        buf_len = CursesIO.get_buffer_length(self.output_buffer)
         start = (buf_len + 1 - self.cursor_location) - curses.LINES
         if start < 0: start = 0
 
