@@ -260,10 +260,14 @@ class CursesIO():
     def poll(self):
         if self.can_refresh_output:
             self.refresh_output()
-        key_ascii = self.stdscr.getch()
-        key_str = ascii.unctrl(key_ascii)
         
-        if (key_ascii != -1):
+        key_buffer = []
+        while (cur_key := self.stdscr.getch()) != -1:
+            key_buffer.append(cur_key)
+
+
+        for key_ascii in key_buffer:
+            key_str = ascii.unctrl(key_ascii)
             if key_ascii in self.key_presses:
                 self.key_presses.get(key_ascii)(self)
             elif not self.scrolling and (len(self.input_prefix) + len(self.input_buffer) + len(key_str) < curses.COLS - 1):
