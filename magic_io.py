@@ -215,6 +215,58 @@ class CursesIO():
                 offset = cur_split.offset
             return current
 
+    @staticmethod
+    def get_buffer_length(buf):
+        return sum( [len(o) for o in buf] )
+
+    @staticmethod
+    def get_lines_between(buf, start_pos = 0, end_pos = -1):
+        # buf is a 2d list of form [ [line], [line, line, line]]
+        buf_len = CursesIO.get_buffer_length(buf)
+
+        if end_pos == -1:
+            end_pos = buf_len
+
+        if start_pos > end_pos:
+            raise IndexError()
+
+        if start_pos > buf_len:
+            raise IndexError()
+
+        if start_pos < 0:
+            start_pos = 0        
+
+        cur_pos = 0
+        start = (-1,)
+        end = (-1,)
+
+        # find start and end points
+        for i, o in enumerate(buf):
+            if cur_pos + len(o) > start_pos and len(start) == 1:
+                start = (i, start_pos - cur_pos)
+            if cur_pos + len(o) >= end_pos and len(end) == 1:
+                end = (i, end_pos - cur_pos)
+            cur_pos += len(o)
+
+        print(start)
+        print(end)
+
+        # extract data
+        if start[0] == end[0]:
+            return [buf[start[0]][start[1]:end[1]]]
+        
+        out_buf = []
+
+        start_arr_trimmed = buf[start[0]][start[1] : ]
+        end_arr_trimmed = buf[end[0]][: end[1]]
+
+        if len(start_arr_trimmed) > 0:
+            out_buf.append(start_arr_trimmed) # trim start array
+        out_buf.extend(buf[start[0] + 1 : end[0] ]) # everything in the middle
+        if len(end_arr_trimmed) > 0:
+            out_buf.append(end_arr_trimmed) # trim end array
+        return out_buf 
+
 
     def process_output(self, output : Union[str, RichText]):
         if isinstance(output, str):
@@ -255,7 +307,7 @@ class CursesIO():
         if start < 0: start = 0
 
         # to_print = self.output_buffer[ start : buf_len - self.cursor_location ]
-        to_print = CursesIO.get_lines_from(self.output_buffer, start, buf_len - self.cursor_location)
+        to_print = CursesIO.get_lines_between(self.output_buffer, start, buf_len - self.cursor_location)
         for (i, output) in enumerate(to_print):
             self.process_output_line(output, i)
 
