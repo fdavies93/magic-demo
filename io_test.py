@@ -16,12 +16,17 @@ if __name__ == "__main__":
         with CursesIO(logfile=log) as curse_io:
             # log.write(str(CursesIO.split_to_lines_simple(lorem)))
             # log.write(str(CursesIO.split_to_lines_simple(rich_lorem)))
-
-            # for i in range(5):
-            #     for ln in CursesIO.split_to_lines_simple(lorem).lines:
-            #         curse_io.add_output(ln)
-            #     for ln in CursesIO.split_to_lines_simple(rich_lorem).lines:
-            #         curse_io.add_output(ln)
+            # curse_io.add_output(lorem_list)
+            # curse_io.add_output(lorem)
+            # curse_io.add_output( str(len(curse_io.output_buffer[0])) )
+            # curse_io.add_output(f"\n{curse_io.output_buffer[0][5]}")
+            for i in range(2):
+                curse_io.add_output(lorem)
+                curse_io.add_output(rich_lorem)
+                # for ln in CursesIO.split_to_lines_simple(lorem).lines:
+                #     curse_io.add_output(ln)
+                # for ln in CursesIO.split_to_lines_simple(rich_lorem).lines:
+                #     curse_io.add_output(ln)
 
             tick_time = 0.0625
             while True:

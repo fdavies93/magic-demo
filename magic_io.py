@@ -145,32 +145,14 @@ class CursesIO():
         return None
 
     def add_output(self, output : Union[str, list, RichText]):
-        self.output_buffer.append(output)
+        lines = CursesIO.split_to_lines(output)
+        self.output_buffer.append(lines)
         self.can_refresh_output = True
 
     def clear_output(self):
         self.output_buffer = []
         self.cursor_location = 0
         self.can_refresh_output = True
-
-    def process_output(self, output : Union[str, RichText]):
-        if isinstance(output, str):
-            self.output_scr.addstr(output)
-        elif isinstance(output, RichText):
-            modifier = curses.color_pair(int(output.color))
-            if output.bold:
-                modifier = modifier | curses.A_BOLD
-            if output.standout:
-                modifier = modifier | curses.A_STANDOUT
-            if output.dim:
-                modifier = modifier | curses.A_DIM
-            if output.reverse:
-                modifier = modifier | curses.A_REVERSE
-            if output.blink:
-                modifier = modifier | curses.A_BLINK
-            if output.underline:
-                modifier = modifier | curses.A_UNDERLINE
-            self.output_scr.addstr(output.text, modifier)
 
     def get_string_repr(self, output : Union[str, list, RichText]) -> str:
         if isinstance(output, str):
@@ -203,7 +185,7 @@ class CursesIO():
         last_break = 0
         for i, char in enumerate(raw_text):
             chars_no_line_break += 1
-            if chars_no_line_break >= curses.COLS-2 or char == "\n":
+            if chars_no_line_break >= curses.COLS-1 or char == "\n":
                 split_text = raw_text[last_break:i+1]
                 last_break = i+1
                 chars_no_line_break = 0
@@ -211,7 +193,6 @@ class CursesIO():
                     out.append(RichText(split_text, color=output.color, standout=output.standout, bold=output.bold, blink=output.blink, dim=output.dim, reverse=output.reverse, underline=output.underline))
                 elif isinstance(output, str):
                     out.append(split_text)
-        
         split_text = raw_text[last_break:]
         
         if isinstance(output, RichText):
@@ -234,6 +215,26 @@ class CursesIO():
                 offset = cur_split.offset
             return current
 
+
+    def process_output(self, output : Union[str, RichText]):
+        if isinstance(output, str):
+            self.output_scr.addstr(output)
+        elif isinstance(output, RichText):
+            modifier = curses.color_pair(int(output.color))
+            if output.bold:
+                modifier = modifier | curses.A_BOLD
+            if output.standout:
+                modifier = modifier | curses.A_STANDOUT
+            if output.dim:
+                modifier = modifier | curses.A_DIM
+            if output.reverse:
+                modifier = modifier | curses.A_REVERSE
+            if output.blink:
+                modifier = modifier | curses.A_BLINK
+            if output.underline:
+                modifier = modifier | curses.A_UNDERLINE
+            self.output_scr.addstr(output.text, modifier)
+
     def process_output_line(self, output : Union[str, list, RichText], line_index):
         if line_index != 0:
             self.output_scr.addstr('\n')
@@ -245,11 +246,16 @@ class CursesIO():
 
     def refresh_output(self):
         self.output_scr.clear()
-        buf_len = len(self.output_buffer)
+
+        expanded_buffer = []
+        
+
+        buf_len = sum( [len(o) for o in self.output_buffer] )
         start = (buf_len + 1 - self.cursor_location) - curses.LINES
         if start < 0: start = 0
-        to_print = self.output_buffer[ start : buf_len - self.cursor_location ]
 
+        # to_print = self.output_buffer[ start : buf_len - self.cursor_location ]
+        to_print = CursesIO.get_lines_from(self.output_buffer, start, buf_len - self.cursor_location)
         for (i, output) in enumerate(to_print):
             self.process_output_line(output, i)
 
@@ -260,11 +266,10 @@ class CursesIO():
     def poll(self):
         if self.can_refresh_output:
             self.refresh_output()
-        
+      
         key_buffer = []
         while (cur_key := self.stdscr.getch()) != -1:
             key_buffer.append(cur_key)
-
 
         for key_ascii in key_buffer:
             key_str = ascii.unctrl(key_ascii)
