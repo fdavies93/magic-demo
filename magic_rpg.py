@@ -1,5 +1,3 @@
-from rich import print
-from rich.table import Table
 import uuid
 from typing import Callable, Union, Any
 from curses import wrapper
