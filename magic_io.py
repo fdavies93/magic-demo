@@ -255,9 +255,7 @@ class CursesIO():
             for o in output:
                 self.process_output(o)
 
-    def render_from(self, offset : int, limit: int):
-        pos = 0
-        cur_ln = 0
+    def render_from(self, limit: int):
         # self.log(str(start))
         render_buffer = []
         breaks : set[int] = set() # which lines should end in breaks?
@@ -267,8 +265,14 @@ class CursesIO():
             render_buffer.extend(cur_output)
             breaks.add( len(render_buffer) - 1 )
 
+        if self.cursor_location < 0:
+            self.cursor_location = 0
+
+        if self.cursor_location > len(render_buffer) - limit:
+            self.cursor_location = len(render_buffer) - limit
+
         start = 0 # calculate from offset and buffer length
-        start = len(render_buffer) - (curses.LINES - 2) - offset
+        start = len(render_buffer) - (limit) - self.cursor_location
         if start < 0:
             start = 0
 
@@ -282,7 +286,7 @@ class CursesIO():
 
     def refresh_output(self):
         self.output_scr.clear()
-        self.render_from(self.cursor_location, curses.LINES-2)
+        self.render_from(curses.LINES-2)
 
         self.output_scr.refresh()
         self.can_refresh_output = False
