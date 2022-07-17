@@ -9,6 +9,21 @@ if __name__ == "__main__":
     rich_lorem = RichText(lorem, color = COLOR.RED, bold=True)
 
     lorem_list = [lorem, rich_lorem, lorem]
+    rainbow = [
+        RichText("r", COLOR.RED, bold=True),
+        RichText("a", COLOR.MAGENTA, bold=True),
+        RichText("i", COLOR.YELLOW, bold=True),
+        RichText("n", COLOR.GREEN, bold=True),
+        RichText("b", COLOR.BLUE, bold=True),
+        RichText("o", COLOR.CYAN, bold=True),
+        RichText("w", COLOR.WHITE, bold=True),
+    ]
+
+    rainbow_list = []
+    for i in range(50):
+        if i > 0:
+            rainbow_list.append(" ")
+        rainbow_list.extend(rainbow)
 
     fake_buffer = [ ["a1", "a2", "a3"], ["b1", "b2", "b3", "b4"], ["c1", "c2"] ]
 
@@ -45,6 +60,10 @@ if __name__ == "__main__":
                     curse_io.add_output(rich_lorem)
                 elif next_input == 'lorem_list':
                     curse_io.add_output(lorem_list)
+                elif next_input == 'rainbow':
+                    curse_io.add_output(rainbow)
+                elif next_input == 'rainbow_list':
+                    curse_io.add_output(rainbow_list)
                 else:
                     curse_io.add_output(next_input)
                 sleep(tick_time)

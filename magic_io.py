@@ -200,19 +200,32 @@ class CursesIO():
         offset = chars_no_line_break
 
         return LineSplitData(out,offset)
-    
-    @staticmethod
-    def split_to_lines(output: Union[str, RichText, list]):
+
+    # @staticmethod
+    def split_to_lines(self, output: Union[str, RichText, list]):
         if isinstance(output, RichText) or isinstance(output, str):
             return [ line for line in CursesIO.split_to_lines_simple(output).lines ]
+            # array of either rich text or strs
         elif isinstance(output, list):
-            current = []
+            out = []
+            current_line = []
             offset = 0
+            cur_chars = 0
             for o in output:
                 cur_split = CursesIO.split_to_lines_simple(o, offset=offset)
-                current.extend(cur_split.lines)
+                for el in cur_split.lines:
+                    cur_chars += len(el)
+                    current_line.append(el)
+                    if cur_chars >= curses.COLS - 1:
+                        out.append(current_line)
+                        cur_chars = 0
+                        current_line = []
+                # render should support an array of arrays
+                self.log("Current: " + str(out))
                 offset = cur_split.offset
-            return current
+            if cur_chars > 0:
+                out.append(current_line)
+            return out
 
     @staticmethod
     def get_buffer_length(buf):
@@ -241,6 +254,7 @@ class CursesIO():
         if isinstance(output, str) or isinstance(output, RichText):
             self.process_output(output)
         elif isinstance(output, list):
+            self.log("Rendering list.")
             for o in output:
                 self.process_output(o)
 
@@ -252,7 +266,7 @@ class CursesIO():
         breaks : set[int] = set() # which lines should end in breaks?
         # push everything into the render buffer, but don't output it yet
         for i, output in enumerate(self.output_buffer):
-            cur_output = CursesIO.split_to_lines(output) # always an array with length being number of on-screen lines
+            cur_output = self.split_to_lines(output) # always an array with length being number of on-screen lines
             render_buffer.extend(cur_output)
             breaks.add( len(render_buffer) - 1 )
 
@@ -264,6 +278,9 @@ class CursesIO():
         line_i = start
         while line_i < len(render_buffer) and line_i < start+limit:
             line = render_buffer[line_i]
+            if isinstance(line, list):
+                self.log(f"Processing list")
+                self.log(str(line))
             self.process_output_line(line)
             if line_i in breaks:
                 self.output_scr.addstr("\n")
