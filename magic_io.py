@@ -1,5 +1,6 @@
 import curses
-from curses import ascii
+from curses import ascii, curs_set
+from os import stat
 import time
 from typing import Union
 from dataclasses import dataclass
@@ -26,6 +27,9 @@ class RichText():
     dim : bool = False
     reverse : bool = False
     underline : bool = False
+
+    def __len__(self):
+        return len(self.text)
 
 @dataclass
 class LineSplitData:
@@ -105,6 +109,7 @@ class CursesIO():
 
     def __enter__(self):
         self.init_windows()
+        curs_set(False)
         return self
     
     def __exit__(self, exception_type, exception_value, exception_traceback):
@@ -145,8 +150,8 @@ class CursesIO():
         return None
 
     def add_output(self, output : Union[str, list, RichText]):
-        lines = CursesIO.split_to_lines(output)
-        self.output_buffer.append(lines)
+        # lines = CursesIO.split_to_lines(output)
+        self.output_buffer.append(output)
         self.can_refresh_output = True
 
     def clear_output(self):
@@ -154,23 +159,14 @@ class CursesIO():
         self.cursor_location = 0
         self.can_refresh_output = True
 
-    def get_string_repr(self, output : Union[str, list, RichText]) -> str:
+    @staticmethod
+    def get_string_repr(output : Union[str, list, RichText]) -> str:
         if isinstance(output, str):
             return output
         if isinstance(output, RichText):
             return output.text
         if isinstance(output, list):
-            return ''.join([ self.get_string_repr(o) for o in output ])
-
-    def get_output_lines(self, output : Union[str, list, RichText]) -> int:
-        # get the lines used by a given output
-        lines = 1
-        str_ : str = get_string_repr(output)
-        lines += str_.count("\n")
-        str_ : str = str_.replace("\n","")
-        total_len = len(str_)
-        lines += math.ceil(float(total_len) / float(curses.COLS))
-        return lines
+            return ''.join([ CursesIO.get_string_repr(o) for o in output ])
 
     @staticmethod
     def split_to_lines_simple(output : Union[str, RichText], offset: int = 0) -> LineSplitData:
@@ -193,8 +189,9 @@ class CursesIO():
                     out.append(RichText(split_text, color=output.color, standout=output.standout, bold=output.bold, blink=output.blink, dim=output.dim, reverse=output.reverse, underline=output.underline))
                 elif isinstance(output, str):
                     out.append(split_text)
-        split_text = raw_text[last_break:]
         
+        split_text = raw_text[last_break:]
+
         if isinstance(output, RichText):
             out.append(RichText(split_text, color=output.color, standout=output.standout, bold=output.bold, blink=output.blink, dim=output.dim, reverse=output.reverse, underline=output.underline))
         elif isinstance(output, str):
@@ -221,52 +218,6 @@ class CursesIO():
     def get_buffer_length(buf):
         return sum( [len(o) for o in buf] )
 
-    @staticmethod
-    def get_lines_between(buf, start_pos = 0, end_pos = -1):
-        # buf is a 2d list of form [ [line], [line, line, line]]
-        buf_len = CursesIO.get_buffer_length(buf)
-
-        if end_pos == -1:
-            end_pos = buf_len
-
-        if start_pos > end_pos:
-            raise IndexError()
-
-        if start_pos > buf_len:
-            raise IndexError()
-
-        if start_pos < 0:
-            start_pos = 0        
-
-        cur_pos = 0
-        start = (-1,)
-        end = (-1,)
-
-        # find start and end points
-        for i, o in enumerate(buf):
-            if cur_pos + len(o) > start_pos and len(start) == 1:
-                start = (i, start_pos - cur_pos)
-            if cur_pos + len(o) >= end_pos and len(end) == 1:
-                end = (i, end_pos - cur_pos)
-            cur_pos += len(o)
-
-        # extract data
-        if start[0] == end[0]:
-            return [buf[start[0]][start[1]:end[1]]]
-        
-        out_buf = []
-
-        start_arr_trimmed = buf[start[0]][start[1] : ]
-        end_arr_trimmed = buf[end[0]][: end[1]]
-
-        if len(start_arr_trimmed) > 0:
-            out_buf.append(start_arr_trimmed) # trim start array
-        out_buf.extend(buf[start[0] + 1 : end[0] ]) # everything in the middle
-        if len(end_arr_trimmed) > 0:
-            out_buf.append(end_arr_trimmed) # trim end array
-        return out_buf 
-
-
     def process_output(self, output : Union[str, RichText]):
         if isinstance(output, str):
             self.output_scr.addstr(output)
@@ -286,28 +237,45 @@ class CursesIO():
                 modifier = modifier | curses.A_UNDERLINE
             self.output_scr.addstr(output.text, modifier)
 
-    def process_output_line(self, output : Union[str, list, RichText], line_index):
-        if line_index != 0:
-            self.output_scr.addstr('\n')
+    def process_output_line(self, output : Union[str, list, RichText]):
         if isinstance(output, str) or isinstance(output, RichText):
             self.process_output(output)
         elif isinstance(output, list):
             for o in output:
                 self.process_output(o)
 
+    def render_from(self, offset : int, limit: int):
+        pos = 0
+        cur_ln = 0
+        # self.log(str(start))
+        render_buffer = []
+        breaks : set[int] = set() # which lines should end in breaks?
+        # push everything into the render buffer, but don't output it yet
+        for i, output in enumerate(self.output_buffer):
+            cur_output = CursesIO.split_to_lines(output) # always an array with length being number of on-screen lines
+            render_buffer.extend(cur_output)
+            breaks.add( len(render_buffer) - 1 )
+
+        start = 0 # calculate from offset and buffer length
+        start = len(render_buffer) - (curses.LINES - 2) - offset
+        if start < 0:
+            start = 0
+
+        line_i = start
+        while line_i < len(render_buffer) and line_i < start+limit:
+            line = render_buffer[line_i]
+            self.process_output_line(line)
+            if line_i in breaks:
+                self.output_scr.addstr("\n")
+            line_i += 1
+
+        self.log(f"Render buffer lines: {len(render_buffer)}")
+
     def refresh_output(self):
         self.output_scr.clear()
 
-        expanded_buffer = []
-
-        buf_len = CursesIO.get_buffer_length(self.output_buffer)
-        start = (buf_len + 1 - self.cursor_location) - curses.LINES
-        if start < 0: start = 0
-
-        # to_print = self.output_buffer[ start : buf_len - self.cursor_location ]
-        to_print = CursesIO.get_lines_between(self.output_buffer, start, buf_len - self.cursor_location)
-        for (i, output) in enumerate(to_print):
-            self.process_output_line(output, i)
+        self.log(f"Cursor location: {self.cursor_location}")
+        self.render_from(self.cursor_location, curses.LINES-2)
 
         self.output_scr.refresh()
         self.can_refresh_output = False

@@ -4,8 +4,6 @@ from time import sleep
 def echo(interface : "CursesIO", input_ : str):
     interface.add_output(input_)
 
-
-
 if __name__ == "__main__":
     lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
     rich_lorem = RichText(lorem, color = COLOR.RED, bold=True)
@@ -24,8 +22,8 @@ if __name__ == "__main__":
             # curse_io.add_output(lorem)
             # curse_io.add_output( str(len(curse_io.output_buffer[0])) )
             # curse_io.add_output(f"\n{curse_io.output_buffer[0][5]}")
-            for i in range(4):
-                curse_io.add_output(lorem_list)
+            # for i in range(4):
+            #     curse_io.add_output(lorem_list)
                 # curse_io.add_output(lorem)
                 # curse_io.add_output(rich_lorem)
                 # for ln in CursesIO.split_to_lines_simple(lorem).lines:
@@ -37,6 +35,16 @@ if __name__ == "__main__":
             while True:
                 curse_io.poll()
                 next_input = curse_io.pop_input()
-                if next_input != None:
+                if next_input == None:
+                    continue
+                elif next_input == 'quit':
+                    break
+                elif next_input == 'lorem':
+                    curse_io.add_output(lorem)
+                elif next_input == 'rich_lorem':
+                    curse_io.add_output(rich_lorem)
+                elif next_input == 'lorem_list':
+                    curse_io.add_output(lorem_list)
+                else:
                     curse_io.add_output(next_input)
                 sleep(tick_time)
