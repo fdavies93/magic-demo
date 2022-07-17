@@ -220,8 +220,6 @@ class CursesIO():
                         out.append(current_line)
                         cur_chars = 0
                         current_line = []
-                # render should support an array of arrays
-                self.log("Current: " + str(out))
                 offset = cur_split.offset
             if cur_chars > 0:
                 out.append(current_line)
@@ -254,7 +252,6 @@ class CursesIO():
         if isinstance(output, str) or isinstance(output, RichText):
             self.process_output(output)
         elif isinstance(output, list):
-            self.log("Rendering list.")
             for o in output:
                 self.process_output(o)
 
@@ -278,20 +275,13 @@ class CursesIO():
         line_i = start
         while line_i < len(render_buffer) and line_i < start+limit:
             line = render_buffer[line_i]
-            if isinstance(line, list):
-                self.log(f"Processing list")
-                self.log(str(line))
             self.process_output_line(line)
             if line_i in breaks:
                 self.output_scr.addstr("\n")
             line_i += 1
 
-        self.log(f"Render buffer lines: {len(render_buffer)}")
-
     def refresh_output(self):
         self.output_scr.clear()
-
-        self.log(f"Cursor location: {self.cursor_location}")
         self.render_from(self.cursor_location, curses.LINES-2)
 
         self.output_scr.refresh()
