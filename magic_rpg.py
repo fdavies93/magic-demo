@@ -10,6 +10,7 @@ class GameObject:
         self.states : dict = dict() # keys strings to some other data, usually attached / managed by skills
         self.skills : set = set() # set of *ids* of available skills
         self.reactions : set = set() # set of *ids* of reactions
+        self.on_tick = None
 
 class Skill:
     def __init__(self, name : str, description : str = "Some skill.", synonyms : list[str] = [], on_parsed : Callable[["Game", list[str], str], Any] = None):
@@ -20,7 +21,8 @@ class Skill:
         self.on_parsed = on_parsed
 
 class Reaction:
-    def __init__(self, reaction_to : str, handle):
+    def __init__(self, name : str, reaction_to : str, handle):
+        self.name : str = name
         self.id : str = uuid.uuid4()
         self.reacting_to : str = reaction_to # id, not name
         self.callback = handle
@@ -60,12 +62,13 @@ class Game:
     _default_commands = {"help": ("See this help message", help), "quit": ("Exit the game.", exit_game), "skills": ("Show your available skills (things you can do).", show_skills)}
 
     def __init__(self, tick_time = 0.0625):
-        self.game_objects : dict[GameObject] = dict()
+        self.game_objects : dict[uuid.UUID, GameObject] = dict()
         self.skills : dict[str, Skill] = dict()
         self.reactions : dict[str, Reaction] = dict()
         self.before_start : Callable[["Game"], None] = do_nothing
         self._skill_parse_dict : dict[str, str] = dict()
         self._reaction_parse_dict : dict[str, list[str]] = dict()
+        self.on_tick_listeners : set[uuid.UUID] = set()
         self.exit : bool = False
         self.tick_time = tick_time
 
@@ -113,6 +116,11 @@ class Game:
             if state_id in y.states
             if eval_fn(y.states[state_id])
         ]
+    
+    def use_skill(self, raw, caller_id):
+        split = Game.split_args(raw)
+        skill_id = self._skill_parse_dict.get(split[0])
+        self.skills.get(skill_id).on_parsed(self, split, skill_id, caller_id)
 
     def get_by_id(self, id_ : str):
         return self.game_objects.get(id_)
@@ -125,7 +133,10 @@ class Game:
 
     def add_object(self, obj : GameObject):
         self.game_objects[obj.id] = obj
-    
+
+    def register_on_tick(self, obj_id : uuid.UUID):
+        self.on_tick_listeners.add(obj_id)
+
     def add_reaction(self, reaction : Reaction):
         self.reactions[reaction.id] = reaction
         reaction_list = self._reaction_parse_dict.get(reaction.reacting_to)
@@ -144,7 +155,10 @@ class Game:
             return []
         return reaction_ids
 
-    def react_to(self, actor_id, skill_id, target_id):
+    def get_reactions_by_name(self, name : str):
+        return list([reaction for reaction in self.reactions.values() if reaction.name == name])
+
+    def react_to(self, actor_id, skill_id, target_id, params = {}):
         target : GameObject = self.get_by_id(target_id)
 
         target_reactions = [ 
@@ -162,22 +176,26 @@ class Game:
         if len(final_targets) > 1:
             self.io.add_output(f"Warning: more than one reaction to {skill_id} in {actor_id}. Only executing the first one.")
         if len(final_targets) > 0:
-            return final_targets[0].callback(self, actor_id, target_id)
+            return final_targets[0].callback(self, actor_id, target_id, params)
         return None
 
     def get_skill_id(self, skill_name):
         return self._skill_parse_dict.get(skill_name)
 
-    def use_skill(self, caller_id, skill_name, args = []):
-        skill_id = self._skill_parse_dict.get(skill_name)
-        self.skills.get(skill_id).on_parsed(self, [skill_name] + args, skill_id, caller_id)
+    # def use_skill(self, caller_id, skill_name, args = []):
+    #     skill_id = self._skill_parse_dict.get(skill_name)
+    #     self.skills.get(skill_id).on_parsed(self, [skill_name] + args, skill_id, caller_id)
 
     def start(self):
         # setup code
         with CursesIO() as self.io:
             self.before_start(self)
             self.io.add_output(["Try ", RichText("help", color=int(COLOR.CYAN), bold=True), " if you need help."])
+            game_time = 0.0
             while not self.exit:
+                game_time += self.tick_time
+                for id in self.on_tick_listeners:
+                    self.game_objects.get(id).on_tick(self, game_time, id)
                 # raw = input("> ")
                 self.io.poll()
                 next_input = self.io.pop_input()
