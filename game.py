@@ -85,7 +85,7 @@ def skill_go(game : "Game", args, skill_id, caller_id):
     caller : GameObject = game.get_by_id(caller_id)
     caller.states["location"] = destination_data["location_id"]
     game.io.clear_output()
-    game.use_skill(caller_id, "look")
+    game.use_skill("look", caller_id)
 
 def skill_attack(game: "Game", args, skill_id, caller_id):
     if len(args) < 2:
