@@ -33,7 +33,8 @@ async def parse(event, user):
     if event["type"] == "disconnect":
         disconnecting.add(user)
     elif event["type"] == "message" and event.get("data") != None:
-        print(str(event["data"]))
+        # print(str(event["data"]))
+        await send_message_all([RichText(f"{user}: ", 1), ' '.join(event["data"])])
 
 # async def receive_loop():
 #     receive_events = set()
@@ -51,6 +52,20 @@ async def send_message_to(user, msg):
     output = Output(send_type, msg)
 
     await to_send.put(SendWrapper(user, SendData("output", output)))
+
+def format_message(msg):
+    if isinstance(msg, RichText):
+        return Output("RichText", msg)
+    elif isinstance(msg, str):
+        return Output("PlainText", msg)
+    elif isinstance(msg, list):
+        return Output("List", [ format_message(item) for item in msg ])
+
+async def send_message_all(msg):
+    output = format_message(msg)
+
+    for user in JOIN:
+        await to_send.put(SendWrapper(user, SendData("output", output)))
 
 async def send_loop():
     while not shutdown:
@@ -72,10 +87,7 @@ async def handler(websocket):
 
         print ( f"User {event.get('user')} connected to server." )
 
-        await send_message_to(user, RichText(f"Welcome to the server, {user}.", color=1, bold=True))
-
-        # while user not in disconnecting:
-        #     await asyncio.gather( [websocket.recv(), websocket.send()] )
+        await send_message_all(RichText(f"Welcome to the server, {user}.", color=1, bold=True))
 
         while not (user in disconnecting):
             message = await websocket.recv()

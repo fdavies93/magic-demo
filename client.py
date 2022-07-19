@@ -146,11 +146,11 @@ class Client:
     @staticmethod
     def parse_disconnect(client : "Client", message : dict):
         disconnect(client, False)
-    
+
     @staticmethod
-    def parse_rich_text(client : "Client", body : dict):
+    def format_rich_text(body:dict):
         if not "text" in body or not isinstance(body["text"], str):
-            return
+            return None
 
         # check fields and remove fields not in the spec programatically, exploiting dataclass functions
 
@@ -162,19 +162,46 @@ class Client:
                 new_body[key] = body[key]
 
         out = RichText(**new_body)
-        client.io.add_output(out)
+        return out
+
+    @staticmethod
+    def format_plain_text(body:dict):
+        if not isinstance(body, str):
+            return None
+        return body
+
+    @staticmethod
+    def parse_rich_text(client : "Client", body : dict):
+        out = Client.format_rich_text(body)
+        if out != None:
+            client.io.add_output(out)
 
     @staticmethod
     def parse_plain_text(client : "Client", body : str):
-        if not isinstance(body, str):
-            return
-        
-        client.io.add_output(body)
+        out = Client.format_plain_text(body)        
+        if out != None:
+            client.io.add_output(out)
 
     @staticmethod
     def parse_list(client : "Client", body : list):
-        for out in body:
-            Client.parse_output(client, out)
+        out = []
+        for msg in body:
+            content_type = msg.get("type")
+            if content_type == None:
+                continue
+
+            content_body = msg.get("content")
+            if content_body == None:
+                continue
+            
+            if content_type == "PlainText":
+                out.append(Client.format_plain_text(content_body))
+            elif content_type == "RichText":
+                out.append(Client.format_rich_text(content_body))
+            
+        client.io.add_output(out)
+            
+
 
     @staticmethod
     def parse_output(client : "Client", output : dict):
