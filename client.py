@@ -1,11 +1,36 @@
 import asyncio
+from dataclasses import asdict, fields
+from dis import disco
+from multiprocessing.dummy import Array
 from websockets import client as ws
+from types import NoneType
+from typing import Union
 import time
 import json
 
 import websockets
 from magic_io import *
 
+@dataclass
+class RichTextData:
+    text: str
+    color : int = 0
+    standout : bool = False
+    bold : bool = False
+    blink : bool = False
+    dim : bool = False
+    reverse : bool = False
+    underline : bool = False
+
+@dataclass
+class Output:
+    type : str
+    content : Union[RichTextData, str, list, NoneType]
+
+@dataclass
+class SendData:
+    type: str
+    data : Union[NoneType, Output]
 
 async def help(client : "Client", args):
     client.io.add_output("HELP")
@@ -32,13 +57,15 @@ async def connect(client : "Client", args):
         client.cur_user = args[2]
         await client.connection.send(json.dumps({ "type": "connect", "user": args[2] }))
         client.io.add_output(f"Connected to {args[1]} successfully.")
+        asyncio.create_task(client.receive_message())
     except:
         client.io.add_output("Couldn't connect to remote server.")
         client.connection = None
 
-async def disconnect(client: "Client"):
+async def disconnect(client: "Client", send_header: bool = True):
     if client.connection != None:
-        await client.connection.send(json.dumps({"type": "disconnect", "user": client.cur_user}))
+        if send_header:
+            await client.connection.send(json.dumps({"type": "disconnect", "user": client.cur_user}))
         await client.connection.close()
         client.cur_user = None
         client.connection = None
@@ -57,6 +84,9 @@ class Client:
         self.tick_time = tick_time
         self.connection = None
         self.cur_user = None
+
+    async def receive_loop():
+        pass
 
     @staticmethod
     def decode_json(message : str) -> Union[str, RichText, list]:
@@ -95,7 +125,98 @@ class Client:
             await Client._default_commands[split[0]][1](self, split)
         elif self.connection != None:
             await self.connection.send(json.dumps({"type":"message", "data": split}))
+    
+    # example_message = {
+    #     "type": "output",
+    #     "output": {
+    #         "type": "RichText",
+    #         "content": {
+    #             "text": "some_text",
+    #             "color": 0,
+    #             "standout": False,
+    #             "bold": False,
+    #             "blink": False,
+    #             "dim": False,
+    #             "reverse": False,
+    #             "underline": False
+    #         }
+    #     }
+    # }
+
+    @staticmethod
+    def parse_disconnect(client : "Client", message : dict):
+        disconnect(client, False)
+    
+    @staticmethod
+    def parse_rich_text(client : "Client", body : dict):
+        if not "text" in body or not isinstance(body["text"], str):
+            return
+
+        # check fields and remove fields not in the spec programatically, exploiting dataclass functions
+
+        rt_fields = dict( (f.name, f.type) for f in fields(RichText))
+        new_body = dict()
+
+        for key in body:
+            if key in rt_fields and isinstance(body[key], rt_fields[key]) :
+                new_body[key] = body[key]
+
+        out = RichText(**new_body)
+        client.io.add_output(out)
+
+    @staticmethod
+    def parse_plain_text(client : "Client", body : str):
+        if not isinstance(body, str):
+            return
         
+        client.io.add_output(body)
+
+    @staticmethod
+    def parse_list(client : "Client", body : list):
+        for out in body:
+            Client.parse_output(client, out)
+
+    @staticmethod
+    def parse_output(client : "Client", output : dict):
+        content_type = output.get("type")
+        if content_type == None:
+            return
+
+        content_body = output.get("content")
+        if content_body == None:
+            return
+        
+        if content_type in Client.output_strategies:
+            Client.output_strategies[content_type](client, content_body)
+
+    @staticmethod
+    def parse_output_message(client : "Client", message : dict):
+        print(message)
+        output = message.get("data")
+        print (output)
+        if output == None:
+            return
+
+        Client.parse_output(client, output)
+            
+
+    strategies = { "output" : parse_output_message, "disconnect": parse_disconnect }
+    output_strategies = { "RichText" : parse_rich_text, "PlainText" : parse_plain_text, "List": parse_list }
+
+    @staticmethod
+    def parse_message(client: "Client", message : str):
+        obj = json.loads(message)
+        obj_type = obj.get("type")
+        if obj_type == None:
+            return
+        elif obj_type in Client.strategies:
+            Client.strategies[obj_type](client, obj)
+
+    async def receive_message(self):
+        while self.connection != None:
+            # self.io.add_output("Loop in receive_message.")
+            message = await self.connection.recv()
+            Client.parse_message(self, message)
 
     async def start(self):
         # setup code
