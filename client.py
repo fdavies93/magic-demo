@@ -64,6 +64,7 @@ async def connect(client : "Client", args):
 
 async def disconnect(client: "Client", send_header: bool = True):
     if client.connection != None:
+        client.disconnecting.set() # stop receiving in the receive loop
         if send_header:
             await client.connection.send(json.dumps({"type": "disconnect", "user": client.cur_user}))
         await client.connection.close()
@@ -240,10 +241,18 @@ class Client:
             Client.strategies[obj_type](client, obj)
 
     async def receive_message(self):
+        self.disconnecting = asyncio.Event()
         while self.connection != None:
             # self.io.add_output("Loop in receive_message.")
-            message = await self.connection.recv()
-            Client.parse_message(self, message)
+            recv_task = asyncio.create_task(self.connection.recv())
+            wait_task = asyncio.create_task(self.disconnecting.wait())
+            done, pending = await asyncio.wait({recv_task, wait_task}, return_when=asyncio.FIRST_COMPLETED)
+
+            if recv_task in done:
+                Client.parse_message(self, recv_task.result())
+            else:
+                recv_task.cancel()
+                break
 
     async def start(self):
         # setup code
