@@ -125,7 +125,7 @@ class Client:
         if len(split) > 0 and split[0] in Client._default_commands:
             await Client._default_commands[split[0]][1](self, split)
         elif self.connection != None:
-            await self.connection.send(json.dumps({"type":"message", "data": split}))
+            await self.connection.send(json.dumps({"type":"message", "data": raw}))
     
     # example_message = {
     #     "type": "output",

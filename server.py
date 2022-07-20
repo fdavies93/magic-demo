@@ -34,7 +34,7 @@ async def parse(event, user):
         disconnecting.add(user)
     elif event["type"] == "message" and event.get("data") != None:
         # print(str(event["data"]))
-        await send_message_all([RichText(f"{user}: ", 1), ' '.join(event["data"])])
+        await send_message_all([RichText(f"{user}: ", 1), event["data"]])
 
 # async def receive_loop():
 #     receive_events = set()
