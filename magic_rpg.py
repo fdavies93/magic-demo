@@ -141,6 +141,9 @@ class Game:
     def add_object(self, obj : GameObject):
         self.game_objects[obj.id] = obj
 
+    def remove_obj(self, id):
+        del self.game_objects[id] # likely not very clean, but ok for now
+
     def register_on_tick(self, obj_id : uuid.UUID):
         self.on_tick_listeners.add(obj_id)
 

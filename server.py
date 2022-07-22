@@ -8,7 +8,9 @@ from typing import Any, Union
 from client import connect
 from interfaces.magic_io import RichText
 from interfaces.NetIO import NetIO
-from magic_rpg import Game
+from magic_rpg import Game, GameObject
+from game.setup import game_setup
+from game.utilities import create_object, get_first_with_name
 
 JOIN : dict[str, Any] = dict()
 disconnecting = set()
@@ -16,7 +18,7 @@ connected = set()
 shutdown = False
 to_send : asyncio.Queue["SendWrapper"] = asyncio.Queue()
 gm = Game(0.5)
-net_io : NetIO = None
+
 
 @dataclass
 class Output:
@@ -72,10 +74,14 @@ async def send_message_all(msg):
         await to_send.put(SendWrapper(user, SendData("output", output)))
 
 async def game_loop():
-    net_io = NetIO(gm.parse, send_message_to)
+    # net_io = NetIO(gm.parse, send_message_to)
+    print(net_io)
     gm.set_interface(net_io)
+    game_setup(gm) # should probably hook into game.before_first_tick
     while not shutdown:
         await gm.tick()
+
+net_io : NetIO = NetIO(gm.parse, send_message_to)
 
 async def send_loop():
     while not shutdown:
@@ -86,6 +92,7 @@ async def send_loop():
 
 async def handler(websocket):
     try:
+        avatar = None
         message = await websocket.recv()
         event = json.loads(message)
 
@@ -104,12 +111,23 @@ async def handler(websocket):
 
         await send_message_all(RichText(f"Welcome to the server, {user}.", color=1, bold=True))
 
+        # create player object in server
+        
+        room = get_first_with_name(gm, "Room")
+        avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
+        listen_react = gm.get_reactions_by_name("listen_can_hear")[0]
+        avatar.reactions.add(listen_react.id)
+        net_io.add_user(user, avatar.id)
+        
+
         while not (user in disconnecting):
             message = await websocket.recv()
             event = json.loads(message)
             await parse(event, user)
 
     finally:
+        if avatar != None:
+            gm.remove_obj(avatar.id)
         print (f"User {user} disconnecting from server.")
         await websocket.close()
         if user in disconnecting:

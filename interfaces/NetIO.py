@@ -1,10 +1,12 @@
-from ast import Call
 from typing import Callable, Union
-from magic_io import RichText
+from interfaces.magic_io import RichText
 import uuid
+import asyncio
+
+# use of create_task is abusive but justified for brevity
 
 class NetIO():
-    def __init__(self, input_stream : Callable[[str, uuid.UUID]], output_stream : Callable[[str,Union[list, RichText, str]]]):
+    def __init__(self, input_stream : Callable[[str, uuid.UUID], None], output_stream : Callable[[str,Union[list, RichText, str]], None]):
         # join object ID to username
         self.id_to_user : dict[uuid.UUID, str] = dict()
         self.user_to_id : dict[str, uuid.UUID] = dict()
@@ -17,12 +19,12 @@ class NetIO():
         if id not in self.id_to_user:
             return        
         username = self.id_to_user.get(id)
-        self.output_stream(username, msg)
+        asyncio.create_task(self.output_stream(username, msg))
 
     def broadcast(self, msg):
         for user in set(self.id_to_user.values()):
             # prevents same user being called twice
-            self.output_stream(user, msg)
+            asyncio.create_task(self.output_stream(user, msg))
     
     def add_user(self, user, id):
         self.id_to_user[id] = user
@@ -38,8 +40,8 @@ class NetIO():
         del self.user_to_id[user]
         del self.id_to_user[id]
 
-    def parse(self, input, user):
+    async def parse(self, input, user):
         if user not in self.user_to_id:
             return
 
-        self.input_stream(input, self.user_to_id.get(user))
+        await self.input_stream(input, self.user_to_id.get(user))
