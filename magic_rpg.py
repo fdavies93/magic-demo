@@ -4,6 +4,7 @@ from curses import wrapper
 from interfaces.CursesIO import CursesIO
 from interfaces.magic_io import RichText, COLOR
 import time
+import asyncio
 
 class GameObject:
     def __init__(self):
@@ -192,7 +193,19 @@ class Game:
     #     skill_id = self._skill_parse_dict.get(skill_name)
     #     self.skills.get(skill_id).on_parsed(self, [skill_name] + args, skill_id, caller_id)
 
-    def tick(self):
+    async def tick(self):
+        self.game_time += self.tick_time
+        for id in self.on_tick_listeners:
+            self.game_objects.get(id).on_tick(self, self.game_time, id)
+        # raw = input("> ")
+        # self.io.poll()
+        # next_input = self.io.pop_input()
+        # if next_input != None:
+        # # print(Game.split_args(raw))
+        #     self.parse(next_input, "")
+        await asyncio.sleep(self.tick_time)
+    
+    def tick_sync(self):
         self.game_time += self.tick_time
         for id in self.on_tick_listeners:
             self.game_objects.get(id).on_tick(self, self.game_time, id)
@@ -202,12 +215,12 @@ class Game:
         if next_input != None:
         # print(Game.split_args(raw))
             self.parse(next_input, "")
-        
+
     def start(self):
         # setup code
         with CursesIO() as self.io:
             self.before_start(self)
             self.io.add_output(["Try ", RichText("help", color=int(COLOR.CYAN), bold=True), " if you need help."])
             while not self.exit:
-                self.tick()
+                self.tick_sync()
                 time.sleep(self.tick_time)

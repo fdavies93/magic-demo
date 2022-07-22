@@ -6,13 +6,17 @@ import websockets
 import json
 from typing import Any, Union
 from client import connect
-from magic_io import RichText
+from interfaces.magic_io import RichText
+from interfaces.NetIO import NetIO
+from magic_rpg import Game
 
 JOIN : dict[str, Any] = dict()
 disconnecting = set()
 connected = set()
 shutdown = False
 to_send : asyncio.Queue["SendWrapper"] = asyncio.Queue()
+gm = Game(0.5)
+net_io : NetIO = None
 
 @dataclass
 class Output:
@@ -36,7 +40,8 @@ async def parse(event, user):
         disconnecting.add(user)
     elif event["type"] == "message" and event.get("data") != None:
         # print(str(event["data"]))
-        await send_message_all([RichText(f"{user}: ", 1), event["data"]])
+        await net_io.parse(event["data"], user)
+        # await send_message_all([RichText(f"{user}: ", 1), event["data"]])
 
 # async def receive_loop():
 #     receive_events = set()
@@ -65,6 +70,12 @@ async def send_message_all(msg):
 
     for user in JOIN:
         await to_send.put(SendWrapper(user, SendData("output", output)))
+
+async def game_loop():
+    net_io = NetIO(gm.parse, send_message_to)
+    gm.set_interface(net_io)
+    while not shutdown:
+        await gm.tick()
 
 async def send_loop():
     while not shutdown:
@@ -113,6 +124,7 @@ async def main():
     async with websockets.serve(handler, "", port):
         print(f"Opening server on port {port}.")
         asyncio.create_task(send_loop())
+        asyncio.create_task(game_loop())
         await asyncio.Future()
 
 if __name__ == "__main__":
