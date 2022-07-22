@@ -9,7 +9,8 @@ import time
 import json
 
 import websockets
-from magic_io import *
+from interfaces.magic_io import *
+from interfaces.CursesIO import *
 
 @dataclass
 class RichTextData:
