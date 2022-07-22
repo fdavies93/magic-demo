@@ -44,4 +44,4 @@ class NetIO():
         if user not in self.user_to_id:
             return
 
-        await self.input_stream(input, self.user_to_id.get(user))
+        self.input_stream(input, self.user_to_id.get(user))

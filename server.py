@@ -85,10 +85,13 @@ net_io : NetIO = NetIO(gm.parse, send_message_to)
 
 async def send_loop():
     while not shutdown:
-        next_message = await to_send.get()
-        print(next_message)
-        await JOIN[next_message.user].send(json.dumps(asdict(next_message.data)))
-        print("Successfully sent.")
+        try:
+            next_message = await to_send.get()
+            print(next_message)
+            await JOIN[next_message.user].send(json.dumps(asdict(next_message.data)))
+            print("Successfully sent.")
+        except TypeError as e:
+            print (e)
 
 async def handler(websocket):
     try:
@@ -116,7 +119,10 @@ async def handler(websocket):
         room = get_first_with_name(gm, "Room")
         avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
         listen_react = gm.get_reactions_by_name("listen_can_hear")[0]
+        avatar.skills.add(gm.get_skill_id("look"))
+        avatar.skills.add(gm.get_skill_id("go"))
         avatar.reactions.add(listen_react.id)
+        avatar.reactions.add(gm.get_reactions_by_name("look_visible")[0].id)
         net_io.add_user(user, avatar.id)
         
 
@@ -128,6 +134,7 @@ async def handler(websocket):
     finally:
         if avatar != None:
             gm.remove_obj(avatar.id)
+            net_io.remove_id(avatar.id)
         print (f"User {user} disconnecting from server.")
         await websocket.close()
         if user in disconnecting:

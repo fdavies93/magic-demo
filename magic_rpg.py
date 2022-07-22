@@ -2,6 +2,7 @@ import uuid
 from typing import Callable, Union, Any
 from curses import wrapper
 from interfaces.CursesIO import CursesIO
+from interfaces.NetIO import NetIO
 from interfaces.magic_io import RichText, COLOR
 import time
 import asyncio
@@ -30,7 +31,7 @@ class Reaction:
         self.callback = handle
 
 
-def help(game : "Game"):
+def help(game : "Game", user : uuid.UUID):
     game.io.add_output("HELP")
     for cmd in Game._default_commands:
         game.io.add_output(f"{cmd} | {Game._default_commands[cmd][0]}")
@@ -44,15 +45,15 @@ def help(game : "Game"):
 def exit_game(game : "Game"):
     game.exit = True
 
-def show_skills(game : "Game"):
+def show_skills(game : "Game", user):
     player : GameObject = game.game_objects[game.player_id]
     # tbl = Table(title="Skills")
     # tbl.add_column("Skill", justify="center", style="bright_cyan")
     # tbl.add_column("Description", justify="center")
-    game.io.add_output("SKILLS")
+    game.interface.send_to(user, "SKILLS")
     for skill_id in player.skills:
         skill : Skill = game.skills.get(skill_id)
-        game.io.add_output(f"{skill.name} | {skill.description}")
+        game.interface.send_to(user, f"{skill.name} | {skill.description}")
     # print(tbl)
     
 def do_nothing(game: "Game"):
@@ -61,7 +62,7 @@ def do_nothing(game: "Game"):
 
 class Game:
 
-    _default_commands = {"help": ("See this help message", help), "quit": ("Exit the game.", exit_game), "skills": ("Show your available skills (things you can do).", show_skills)}
+    _default_commands = {"help": ("See this help message", help), "skills": ("Show your available skills (things you can do).", show_skills)}
 
     def __init__(self, tick_time = 0.0625):
         self.game_objects : dict[uuid.UUID, GameObject] = dict()
@@ -73,7 +74,7 @@ class Game:
         self.on_tick_listeners : set[uuid.UUID] = set()
         self.exit : bool = False
         self.tick_time = tick_time
-        self.interface = None
+        self.interface : NetIO = None
         self.game_time = 0.0
 
     def set_interface(self, interface):
@@ -107,11 +108,11 @@ class Game:
     def parse(self, raw : str, user):
         split = Game.split_args(raw)
         if len(split) > 0 and split[0] in Game._default_commands:
-            Game._default_commands[split[0]][1](self)
+            Game._default_commands[split[0]][1](self, user)
         elif len(split) > 0 and split[0] in self._skill_parse_dict:
             # this is STILL wrong because we need the player object to be set up as a receiver for inputs
             skill_id = self._skill_parse_dict.get(split[0])
-            self.skills.get(skill_id).on_parsed(self, split, skill_id, self.player_id)
+            self.skills.get(skill_id).on_parsed(self, split, skill_id, user)
 
     def get_by_state(self, state_id, eval_fn):
         # this builds a pretty strong case for having a state manager rather than having GameObjects handle their own state

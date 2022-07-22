@@ -12,16 +12,16 @@ def skill_look(game : "Game", args, skill_id, caller_id): # that info can kind o
     if len(args) > 1:
         for obj in object_datas:
             if obj["name"].lower() == args[1].lower() or (obj["synonyms"] != None and args[1].lower() in obj["synonyms"]):
-                game.io.add_output(RichText(obj['name'], COLOR.YELLOW,underline=True, bold=True))
-                game.io.add_output(f"{obj['description']}")
+                game.interface.send_to(caller_id, RichText(obj['name'], COLOR.YELLOW,underline=True, bold=True))
+                game.interface.send_to(caller_id, f"{obj['description']}")
                 return
     object_string = ', '.join([ obj["name"] for obj in object_datas ])
-    game.io.add_output(RichText(location_data['name'], COLOR.YELLOW, underline=True, bold=True))
-    game.io.add_output(f"{location_data['description']} You can see {object_string} here.")
+    game.interface.send_to(caller_id, RichText(location_data['name'], COLOR.YELLOW, underline=True, bold=True))
+    game.interface.send_to(caller_id, f"{location_data['description']} You can see {object_string} here.")
 
 def skill_create(game : "Game", args, skill_id, caller_id):
     if len(args) < 3:
-        game.io.add_output("create NAME DESCRIPTION")
+        game.interface.send_to(caller_id,"create NAME DESCRIPTION")
         return
     caller : GameObject() = game.get_by_id(caller_id)
     location = game.get_by_id(caller.states["location"])
@@ -34,41 +34,41 @@ def skill_create(game : "Game", args, skill_id, caller_id):
 
 def skill_go(game : "Game", args, skill_id, caller_id):
     if len(args) < 2:
-        game.io.add_output("go EXIT")
+        game.interface.send_to(caller_id,"go EXIT")
         return
     
     target = get_target(game, caller_id, args[1])
     
     if target == None:
-        game.io.add_output("You can't see that.")
+        game.interface.send_to(caller_id, "You can't see that.")
         return
     
     destination_data = game.react_to(caller_id, skill_id, target.get("id"))
     
     if destination_data == None:
-        game.io.add_output("You can't go there.")
+        game.interface.send_to(caller_id, "You can't go there.")
         return
     
     caller : GameObject = game.get_by_id(caller_id)
     caller.states["location"] = destination_data["location_id"]
-    game.io.clear_output()
+    # game.io.clear_output()
     game.use_skill("look", caller_id)
 
 def skill_attack(game: "Game", args, skill_id, caller_id):
     if len(args) < 2:
-        game.io.add_output("attack TARGET")
+        game.interface.send_to(caller_id, "attack TARGET")
         return
     
     target = get_target(game, caller_id, args[1])
     
     if target == None:
-        game.io.add_output("You can't see that.")
+        game.interface.send_to(caller_id, "You can't see that.")
     
     attacked_data = game.react_to(caller_id, skill_id, target.get("id"))
 
 def skill_say(game: "Game", args, skill_id, caller_id):
     if len(args) < 2:
-        game.io.add_output("say WORDS")
+        game.interface.send_to(caller_id, "say WORDS")
         return
     
     caller : GameObject = game.get_by_id(caller_id)
