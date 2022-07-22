@@ -1,9 +1,11 @@
 import asyncio
 from dataclasses import dataclass, asdict
+from multiprocessing.sharedctypes import Value
 from types import NoneType
 import websockets
 import json
 from typing import Any, Union
+from client import connect
 from magic_io import RichText
 
 JOIN : dict[str, Any] = dict()
@@ -41,18 +43,6 @@ async def parse(event, user):
 #     while not shutdown:
 #         done, pending = await asyncio.wait(receive_events, return_when=asyncio.FIRST_COMPLETED)
 
-async def send_message_to(user, msg):
-    if isinstance(msg, RichText):
-        send_type = "RichText"
-    elif isinstance(msg, str):
-        send_type = "PlainText"
-    elif isinstance(msg, list):
-        send_type = "List"
-    
-    output = Output(send_type, msg)
-
-    await to_send.put(SendWrapper(user, SendData("output", output)))
-
 def format_message(msg):
     if isinstance(msg, RichText):
         return Output("RichText", msg)
@@ -60,6 +50,15 @@ def format_message(msg):
         return Output("PlainText", msg)
     elif isinstance(msg, list):
         return Output("List", [ format_message(item) for item in msg ])
+
+async def send_message_websocket(socket, msg):
+    out = format_message(msg)
+    await socket.send(json.dumps(asdict(SendData("output",out))))
+
+async def send_message_to(user, msg):
+    output = format_message(msg)
+
+    await to_send.put(SendWrapper(user, SendData("output", output)))
 
 async def send_message_all(msg):
     output = format_message(msg)
@@ -75,7 +74,6 @@ async def send_loop():
         print("Successfully sent.")
 
 async def handler(websocket):
-    connected.add(websocket)
     try:
         message = await websocket.recv()
         event = json.loads(message)
@@ -83,8 +81,14 @@ async def handler(websocket):
         assert event["type"] == "connect"
 
         user = event["user"]
-        JOIN[event["user"]] = websocket
 
+        if user in JOIN:
+            await send_message_websocket(websocket, f"Username {user} already exists on this server, please try logging on again with a different username.")
+            await websocket.send(json.dumps(asdict(SendData("disconnect", None))))
+            raise ValueError
+
+        connected.add(websocket)
+        JOIN[event["user"]] = websocket
         print ( f"User {event.get('user')} connected to server." )
 
         await send_message_all(RichText(f"Welcome to the server, {user}.", color=1, bold=True))
@@ -97,9 +101,12 @@ async def handler(websocket):
     finally:
         print (f"User {user} disconnecting from server.")
         await websocket.close()
-        disconnecting.remove(user)
-        connected.remove(websocket)
-        del JOIN[user]
+        if user in disconnecting:
+            # don't do any if not true, because this is an error
+            disconnecting.remove(user)
+            del JOIN[user]
+        if websocket in connected:
+            connected.remove(websocket)        
     
 async def main():
     port = 8001

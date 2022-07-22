@@ -145,8 +145,8 @@ class Client:
     # }
 
     @staticmethod
-    def parse_disconnect(client : "Client", message : dict):
-        disconnect(client, False)
+    async def parse_disconnect(client : "Client", message : dict):
+        await disconnect(client, False)
 
     @staticmethod
     def format_rich_text(body:dict):
@@ -218,7 +218,7 @@ class Client:
             Client.output_strategies[content_type](client, content_body)
 
     @staticmethod
-    def parse_output_message(client : "Client", message : dict):
+    async def parse_output_message(client : "Client", message : dict):
         print(message)
         output = message.get("data")
         print (output)
@@ -232,13 +232,13 @@ class Client:
     output_strategies = { "RichText" : parse_rich_text, "PlainText" : parse_plain_text, "List": parse_list }
 
     @staticmethod
-    def parse_message(client: "Client", message : str):
+    async def parse_message(client: "Client", message : str):
         obj = json.loads(message)
         obj_type = obj.get("type")
         if obj_type == None:
             return
         elif obj_type in Client.strategies:
-            Client.strategies[obj_type](client, obj)
+            await Client.strategies[obj_type](client, obj)
 
     async def receive_message(self):
         self.disconnecting = asyncio.Event()
@@ -249,7 +249,7 @@ class Client:
             done, pending = await asyncio.wait({recv_task, wait_task}, return_when=asyncio.FIRST_COMPLETED)
 
             if recv_task in done:
-                Client.parse_message(self, recv_task.result())
+                await Client.parse_message(self, recv_task.result())
             else:
                 recv_task.cancel()
                 break
