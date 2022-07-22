@@ -71,6 +71,11 @@ class Game:
         self.on_tick_listeners : set[uuid.UUID] = set()
         self.exit : bool = False
         self.tick_time = tick_time
+        self.interface = None
+        self.game_time = 0.0
+
+    def set_interface(self, interface):
+        self.interface = interface
 
     def split_args(raw: str) -> list[str]:
         i = 0
@@ -97,7 +102,7 @@ class Game:
         return arg_list
 
 
-    def parse(self, raw : str):
+    def parse(self, raw : str, user):
         split = Game.split_args(raw)
         if len(split) > 0 and split[0] in Game._default_commands:
             Game._default_commands[split[0]][1](self)
@@ -186,20 +191,22 @@ class Game:
     #     skill_id = self._skill_parse_dict.get(skill_name)
     #     self.skills.get(skill_id).on_parsed(self, [skill_name] + args, skill_id, caller_id)
 
+    def tick(self):
+        self.game_time += self.tick_time
+        for id in self.on_tick_listeners:
+            self.game_objects.get(id).on_tick(self, self.game_time, id)
+        # raw = input("> ")
+        self.io.poll()
+        next_input = self.io.pop_input()
+        if next_input != None:
+        # print(Game.split_args(raw))
+            self.parse(next_input, "")
+        
     def start(self):
         # setup code
         with CursesIO() as self.io:
             self.before_start(self)
             self.io.add_output(["Try ", RichText("help", color=int(COLOR.CYAN), bold=True), " if you need help."])
-            game_time = 0.0
             while not self.exit:
-                game_time += self.tick_time
-                for id in self.on_tick_listeners:
-                    self.game_objects.get(id).on_tick(self, game_time, id)
-                # raw = input("> ")
-                self.io.poll()
-                next_input = self.io.pop_input()
-                if next_input != None:
-                # print(Game.split_args(raw))
-                    self.parse(next_input)
+                self.tick()
                 time.sleep(self.tick_time)

@@ -2,10 +2,14 @@ import curses
 from curses import ascii, curs_set
 from os import stat
 import time
-from typing import Union
+from typing import Callable, Union
 from dataclasses import dataclass
 from enum import IntEnum
 from math import ceil
+import uuid
+
+# from magic_rpg import Game
+# from server import send_message_to
 
 class COLOR(IntEnum):
     BLACK = 0,
@@ -35,6 +39,32 @@ class RichText():
 class LineSplitData:
     lines : list[str]
     offset : int 
+
+# class NetIO():
+
+#     def __init__(self, game : Game, output_stream : Callable[[str,Union[list, RichText, str]]]):
+#         # join object ID to username
+#         self.users : dict[uuid.UUID, str] = dict()
+#         self.output_stream = output_stream
+#         self.game = game
+#         game.set_interface(self)
+    
+#     async def io_loop(self): 
+        
+#         pass
+
+#     def send_to(self, id, msg):
+#         if id not in self.users:
+#             return        
+#         username = self.users.get(id)
+#         self.output_stream(username, msg)
+
+#     def broadcast(self, msg):
+#         for user in self.users.values():
+#             self.output_stream(user, msg)
+    
+#     def parse(self, input, user):
+#         self.game.parse(input, user)
 
 class CursesIO():
 
