@@ -1,5 +1,5 @@
 from typing import Union
-from magic_io import RichText, LineSplitData
+from interfaces.magic_io import RichText, LineSplitData
 import curses
 from curses import ascii, curs_set
 

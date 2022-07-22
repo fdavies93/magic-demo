@@ -2,7 +2,7 @@ from subprocess import call
 import uuid
 from typing import Callable, Union, Any
 from magic_rpg import *
-from magic_io import RichText, COLOR
+from interfaces.magic_io import RichText, COLOR
 
 def create_object(game : Game, name: str, description: str, location: str = None, on_tick = None):
     new_obj = GameObject()

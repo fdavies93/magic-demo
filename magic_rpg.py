@@ -1,7 +1,8 @@
 import uuid
 from typing import Callable, Union, Any
 from curses import wrapper
-from magic_io import CursesIO, RichText, COLOR
+from interfaces.CursesIO import CursesIO
+from interfaces.magic_io import RichText, COLOR
 import time
 
 class GameObject:
