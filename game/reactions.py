@@ -1,4 +1,4 @@
-from magic_rpg import Game, GameObject
+from magic_rpg import Game, GameObject, Reaction
 from interfaces.magic_io import RichText, COLOR
 
 def reaction_look_visible(game : "Game", looker_id, self_id, params) -> dict:
@@ -16,3 +16,9 @@ def reaction_say_can_hear(game: "Game", speaker_id, self_id, params) -> dict:
 def reaction_go_can_go(game : "Game", enter_id, self_id, params) -> dict:
     myself : GameObject = game.get_by_id(self_id)
     return { "location_id": myself.states.get("destination") }
+
+REACTIONS = { 
+    Reaction("look_visible", "look", reaction_look_visible),
+    Reaction("go_can_go", "go", reaction_go_can_go),
+    Reaction("listen_can_hear", "say", reaction_say_can_hear)
+}

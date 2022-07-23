@@ -1,5 +1,5 @@
 import uuid
-from typing import Callable, Union, Any
+from typing import Callable, Iterable, Union, Any
 from curses import wrapper
 from interfaces.CursesIO import CursesIO
 from interfaces.NetIO import NetIO
@@ -139,6 +139,30 @@ class Game:
         for synonym in skill.synonyms:
             self._skill_parse_dict[synonym.lower()] = skill.id
 
+    def add_skills(self, skills : Iterable[Skill]):
+        for skill in skills:
+            self.add_skill(skill)
+
+    def imbue_skill(self, obj : GameObject, skill : str):
+        skill_id = self.get_skill_id(skill)
+        obj.skills.add(skill_id)
+
+    def imbue_skills(self, obj : GameObject, skills : Iterable[str]):
+        for skill in skills:
+            self.imbue_skill(obj, skill)
+
+    def imbue_reaction(self, obj : GameObject, reaction : str):
+        reaction_obj = self.get_reactions_by_name(reaction)[0]
+        obj.reactions.add(reaction_obj.id)
+
+    def imbue_reactions(self, obj : GameObject, reactions : Iterable[str]):
+        for reaction in reactions:
+            self.imbue_reaction(obj, reaction)
+
+    def add_reactions(self, reactions : Iterable[Reaction]):
+        for reaction in reactions:
+            self.add_reaction(reaction)
+
     def add_object(self, obj : GameObject):
         self.game_objects[obj.id] = obj
 
@@ -150,12 +174,13 @@ class Game:
 
     def add_reaction(self, reaction : Reaction):
         self.reactions[reaction.id] = reaction
-        reaction_list = self._reaction_parse_dict.get(reaction.reacting_to)
+        skill_id = self.get_skill_id(reaction.reacting_to)
+        reaction_list = self._reaction_parse_dict.get(skill_id)
         if reaction_list != None:
             reaction_list.append(reaction.id)
         else:
             reaction_list = [reaction.id]
-        self._reaction_parse_dict[reaction.reacting_to] = reaction_list
+        self._reaction_parse_dict[skill_id] = reaction_list
 
     def get_reactions(self, reacts_to : str):
         skill_id = self._skill_parse_dict.get(reacts_to)

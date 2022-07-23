@@ -45,11 +45,6 @@ async def parse(event, user):
         await net_io.parse(event["data"], user)
         # await send_message_all([RichText(f"{user}: ", 1), event["data"]])
 
-# async def receive_loop():
-#     receive_events = set()
-#     while not shutdown:
-#         done, pending = await asyncio.wait(receive_events, return_when=asyncio.FIRST_COMPLETED)
-
 def format_message(msg):
     if isinstance(msg, RichText):
         return Output("RichText", msg)
@@ -110,12 +105,13 @@ async def handler(websocket):
 
         connected.add(websocket)
         JOIN[event["user"]] = websocket
+
+        # ON USER CONNECT EVENT
         print ( f"User {event.get('user')} connected to server." )
 
         await send_message_all(RichText(f"Welcome to the server, {user}.", color=1, bold=True))
 
         # create player object in server
-        
         room = get_first_with_name(gm, "Room")
         avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
         listen_react = gm.get_reactions_by_name("listen_can_hear")[0]
@@ -124,7 +120,7 @@ async def handler(websocket):
         avatar.reactions.add(listen_react.id)
         avatar.reactions.add(gm.get_reactions_by_name("look_visible")[0].id)
         net_io.add_user(user, avatar.id)
-        
+        # END ON USER CONNECT
 
         while not (user in disconnecting):
             message = await websocket.recv()

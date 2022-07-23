@@ -1,4 +1,4 @@
-from magic_rpg import Game, GameObject
+from magic_rpg import Game, GameObject, Skill
 from interfaces.magic_io import RichText, COLOR
 from game.utilities import get_in_location, create_object, get_target
 
@@ -76,3 +76,10 @@ def skill_say(game: "Game", args, skill_id, caller_id):
 
     for listener in listeners:
         game.react_to(caller_id, skill_id, listener.id, {"words": args[1]})
+
+SKILLS = {
+    Skill("look", on_parsed=skill_look),
+    Skill("create", on_parsed=skill_create),
+    Skill("go", on_parsed=skill_go),
+    Skill("say", on_parsed=skill_say)
+}
