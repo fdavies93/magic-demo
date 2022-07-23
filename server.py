@@ -9,7 +9,7 @@ from client import connect
 from interfaces.magic_io import RichText
 from interfaces.NetIO import NetIO
 from magic_rpg import Game, GameObject
-from game.setup import game_setup, game_state_save
+from game.setup import game_setup, game_state_save, game_state_load
 from game.utilities import create_object, get_first_with_name
 
 JOIN : dict[str, Any] = dict()
@@ -71,7 +71,10 @@ async def game_loop():
     # net_io = NetIO(gm.parse, send_message_to)
     print(net_io)
     gm.set_interface(net_io)
-    game_setup(gm) # should probably hook into game.before_first_tick
+    print("Loading game state.")
+    game_state_load(gm, "last_quit.json")
+    print("Starting main game loop.")
+    # game_setup(gm) # should probably hook into game.before_first_tick
     while not shutdown:
         await gm.tick()
 

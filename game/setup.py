@@ -39,13 +39,12 @@ def game_setup(game : Game):
 def game_state_load(game : Game, file : str):
     game.add_skills(SKILLS)
     game.add_reactions(REACTIONS)
+    game.add_scripts(SCRIPTS)
+
     with open(file, mode="r") as f:
         state = json.load(f)
-    for obj_data in state:
-        obj = GameObject(obj_data.id)
-        obj.states = obj_data.states
-        
-        game.add_object(obj)
+    
+    game.load_state(state)
 
 def game_state_save(game : Game, file : str):
     print(game.dump_state())

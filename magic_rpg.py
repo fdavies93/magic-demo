@@ -152,6 +152,17 @@ class Game:
             "objects": [x for x in map( lambda obj : self.obj_to_dict(obj), self.game_objects.values())]
         }
 
+    def load_state(self, state_obj : dict):
+        for obj in state_obj.get("objects"):
+            new_obj = GameObject(obj.get("id"))
+            new_obj.states = obj.get("state")
+            self.imbue_reactions(new_obj, obj.get("reactions"))
+            self.imbue_skills(new_obj, obj.get("skills"))
+            self.add_object(new_obj)
+
+        for ev, listeners in state_obj.get("listeners").items():
+            for listener in listeners:
+                self.register_event(ev, listener.get("listener"), listener.get("script"))
 
     def parse(self, raw : str, user):
         split = Game.split_args(raw)
