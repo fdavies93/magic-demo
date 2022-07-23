@@ -1,15 +1,12 @@
 from magic_rpg import Game, GameObject
 
-def create_object(game : Game, name: str, description: str, location: str = None, on_tick = None, id = None):
+def create_object(game : Game, name: str, description: str, location: str = None, id = None):
     new_obj = GameObject(id)
     new_obj.states["name"] = name
     new_obj.states["description"] = description
     if location != None:
         new_obj.states["location"] = location
     game.add_object(new_obj)
-    new_obj.on_tick = on_tick
-    if on_tick != None:
-        game.register_on_tick(new_obj.id)
     return new_obj
 
 def get_in_location(game : Game, location_id):

@@ -144,8 +144,8 @@ async def main():
     try:
         async with websockets.serve(handler, "", port):
             print(f"Opening server on port {port}.")
-            asyncio.create_task(send_loop())
-            asyncio.create_task(game_loop())
+            send_task = asyncio.create_task(send_loop())
+            game_task = asyncio.create_task(game_loop())
             await asyncio.Future()
     finally:
         game_state_save(gm, "last_quit.json")

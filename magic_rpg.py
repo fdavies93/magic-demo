@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import uuid
 from typing import Callable, Iterable, Union, Any
 from curses import wrapper
@@ -33,6 +34,22 @@ class Reaction:
         self.reacting_to : str = reaction_to # id, not name
         self.callback = handle
 
+class Script:
+    def __init__(self, name : str, callback : Callable[["Game", str, "EventData"], str]):
+        self.name : str = name
+        self.callback : Callable[[Game, str, "EventData"], str] = callback
+
+class ListenerData:
+    def __init__(self, listener_id : str, script_name : str):
+        self.listener = listener_id
+        self.script = script_name
+
+class EventData:
+    pass
+
+@dataclass
+class EventDataOnTick(EventData):
+    cur_time : float
 
 def help(game : "Game", user : uuid.UUID):
     game.io.add_output("HELP")
@@ -71,6 +88,8 @@ class Game:
         self.game_objects : dict[str, GameObject] = dict()
         self.skills : dict[str, Skill] = dict()
         self.reactions : dict[str, Reaction] = dict()
+        self.scripts : dict[str, Script] = dict()
+        self.listeners : dict[str, list[ListenerData]] = dict()
         self.before_start : Callable[["Game"], None] = do_nothing
         self._skill_parse_dict : dict[str, str] = dict()
         self._reaction_parse_dict : dict[str, list[str]] = dict()
@@ -153,6 +172,25 @@ class Game:
     def get_by_id(self, id_ : str):
         return self.game_objects.get(id_)
 
+    def add_script(self, script : Script):
+        self.scripts[script.name] = script
+    
+    def add_scripts(self, scripts : Iterable[Script]):
+        for script in scripts:
+            self.add_script(script)
+
+    def register_event(self, event_name : str, listener : str, script : str):
+        if event_name not in self.listeners:
+            self.listeners[event_name] = []
+        self.listeners[event_name].append(ListenerData(listener, script))
+
+    def call_event(self, event_name : str, data : EventData):
+        listeners : list[ListenerData] = self.listeners.get(event_name)
+        if listeners == None or not isinstance(listeners, list) or len(listeners) == 0:
+            return
+        for listener in listeners:
+            self.scripts[listener.script].callback(self, listener.listener, data)
+            
     def add_skill(self, skill : Skill):
         self.skills[skill.id] = skill
         self._skill_parse_dict[skill.name.lower()] = skill.id
@@ -244,8 +282,9 @@ class Game:
 
     async def tick(self):
         self.game_time += self.tick_time
-        for id in self.on_tick_listeners:
-            self.game_objects.get(id).on_tick(self, self.game_time, id)
+        self.call_event("tick", EventDataOnTick(self.game_time))
+        # for id in self.on_tick_listeners:
+        #     self.game_objects.get(id).on_tick(self, self.game_time, id)
         # raw = input("> ")
         # self.io.poll()
         # next_input = self.io.pop_input()

@@ -7,7 +7,6 @@ def reaction_look_visible(game : "Game", looker_id, self_id, params) -> dict:
     return { "id": myself.id, "name": myself.states.get("name"), "description": myself.states.get("description"), "synonyms": myself.states.get("synonyms") }
 
 def reaction_say_can_hear(game: "Game", speaker_id, self_id, params) -> dict:
-    
     speaker : GameObject = game.get_by_id(speaker_id)
     game.interface.send_to(self_id, [RichText(speaker.states.get("name") + ": ", COLOR.YELLOW), params["words"]])
     # game.io.add_output([RichText(speaker.states.get("name") + ": ", COLOR.YELLOW), params["words"]])
