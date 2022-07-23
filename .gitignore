@@ -3,6 +3,8 @@ log.txt
 log
 logs/
 
+last_quit.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -9,7 +9,7 @@ from client import connect
 from interfaces.magic_io import RichText
 from interfaces.NetIO import NetIO
 from magic_rpg import Game, GameObject
-from game.setup import game_setup
+from game.setup import game_setup, game_state_save
 from game.utilities import create_object, get_first_with_name
 
 JOIN : dict[str, Any] = dict()
@@ -18,7 +18,6 @@ connected = set()
 shutdown = False
 to_send : asyncio.Queue["SendWrapper"] = asyncio.Queue()
 gm = Game(0.5)
-
 
 @dataclass
 class Output:
@@ -142,11 +141,14 @@ async def handler(websocket):
     
 async def main():
     port = 8001
-    async with websockets.serve(handler, "", port):
-        print(f"Opening server on port {port}.")
-        asyncio.create_task(send_loop())
-        asyncio.create_task(game_loop())
-        await asyncio.Future()
+    try:
+        async with websockets.serve(handler, "", port):
+            print(f"Opening server on port {port}.")
+            asyncio.create_task(send_loop())
+            asyncio.create_task(game_loop())
+            await asyncio.Future()
+    finally:
+        game_state_save(gm, "last_quit.json")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -4,12 +4,15 @@ from curses import wrapper
 from interfaces.CursesIO import CursesIO
 from interfaces.NetIO import NetIO
 from interfaces.magic_io import RichText, COLOR
+from copy import deepcopy
 import time
 import asyncio
 
 class GameObject:
-    def __init__(self):
-        self.id : str = uuid.uuid4()
+    def __init__(self, id = None):
+        self.id : str = str(uuid.uuid4())
+        if id != None:
+            self.id = id
         self.states : dict = dict() # keys strings to some other data, usually attached / managed by skills
         self.skills : set = set() # set of *ids* of available skills
         self.reactions : set = set() # set of *ids* of reactions
@@ -17,7 +20,7 @@ class GameObject:
 
 class Skill:
     def __init__(self, name : str, description : str = "Some skill.", synonyms : list[str] = [], on_parsed : Callable[["Game", list[str], str], Any] = None):
-        self.id : str = uuid.uuid4()
+        self.id : uuid.UUID = uuid.uuid4()
         self.name : str = name
         self.description : str = description
         self.synonyms : str = synonyms
@@ -65,13 +68,13 @@ class Game:
     _default_commands = {"help": ("See this help message", help), "skills": ("Show your available skills (things you can do).", show_skills)}
 
     def __init__(self, tick_time = 0.0625):
-        self.game_objects : dict[uuid.UUID, GameObject] = dict()
+        self.game_objects : dict[str, GameObject] = dict()
         self.skills : dict[str, Skill] = dict()
         self.reactions : dict[str, Reaction] = dict()
         self.before_start : Callable[["Game"], None] = do_nothing
         self._skill_parse_dict : dict[str, str] = dict()
         self._reaction_parse_dict : dict[str, list[str]] = dict()
-        self.on_tick_listeners : set[uuid.UUID] = set()
+        self.on_tick_listeners : set[str] = set()
         self.exit : bool = False
         self.tick_time = tick_time
         self.interface : NetIO = None
@@ -103,6 +106,23 @@ class Game:
         if len(buffer) > 0:
             arg_list.append(buffer)
         return arg_list
+
+    def obj_to_dict(self, obj : GameObject):
+        reaction_names = []
+        for reaction in obj.reactions:
+            reaction_names.extend(self.get_reactions_by_name(reaction))
+        skill_names = []
+        for skill in obj.skills:
+            skill_names.append( self.skills.get(skill).name )
+        return {
+            "id": obj.id,
+            "state": deepcopy(obj.states),
+            "reactions": reaction_names,
+            "skills": skill_names
+        }
+
+    def dump_state(self):
+        return [x for x in map( lambda obj : self.obj_to_dict(obj), self.game_objects.values())]
 
 
     def parse(self, raw : str, user):

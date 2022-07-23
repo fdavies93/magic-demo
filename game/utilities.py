@@ -1,7 +1,7 @@
 from magic_rpg import Game, GameObject
 
-def create_object(game : Game, name: str, description: str, location: str = None, on_tick = None):
-    new_obj = GameObject()
+def create_object(game : Game, name: str, description: str, location: str = None, on_tick = None, id = None):
+    new_obj = GameObject(id)
     new_obj.states["name"] = name
     new_obj.states["description"] = description
     if location != None:
