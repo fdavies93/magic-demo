@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import uuid
 from typing import Callable, Iterable, Union, Any
 from curses import wrapper
@@ -39,10 +39,10 @@ class Script:
         self.name : str = name
         self.callback : Callable[[Game, str, "EventData"], str] = callback
 
+@dataclass
 class ListenerData:
-    def __init__(self, listener_id : str, script_name : str):
-        self.listener = listener_id
-        self.script = script_name
+    listener : str
+    script : str
 
 class EventData:
     pass
@@ -129,7 +129,7 @@ class Game:
     def obj_to_dict(self, obj : GameObject):
         reaction_names = []
         for reaction in obj.reactions:
-            reaction_names.extend(self.get_reactions_by_name(reaction))
+            reaction_names.append( self.reactions.get(reaction).name )
         skill_names = []
         for skill in obj.skills:
             skill_names.append( self.skills.get(skill).name )
@@ -140,8 +140,17 @@ class Game:
             "skills": skill_names
         }
 
+    def listeners_to_dict(self):
+        out = {}
+        for ev, listeners in self.listeners.items():
+            out[ev] = [x for x in map( lambda l : asdict(l), listeners )]
+        return out
+
     def dump_state(self):
-        return [x for x in map( lambda obj : self.obj_to_dict(obj), self.game_objects.values())]
+        return {
+            "listeners": self.listeners_to_dict(),
+            "objects": [x for x in map( lambda obj : self.obj_to_dict(obj), self.game_objects.values())]
+        }
 
 
     def parse(self, raw : str, user):
