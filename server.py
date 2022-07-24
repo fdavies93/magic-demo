@@ -116,11 +116,12 @@ async def handler(websocket):
         # create player object in server
         room = get_first_with_name(gm, "Room")
         avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
-        listen_react = gm.get_reactions_by_name("listen_can_hear")[0]
-        avatar.skills.add(gm.get_skill_id("look"))
-        avatar.skills.add(gm.get_skill_id("go"))
-        avatar.reactions.add(listen_react.id)
-        avatar.reactions.add(gm.get_reactions_by_name("look_visible")[0].id)
+
+        avatar.states["admin"] = True
+
+        gm.imbue_reactions(avatar, {"listen_can_hear","look_visible"})
+        gm.imbue_skills(avatar, {"look", "go", "create", "destroy", "set", "list", "imbue", "inspect"})
+
         net_io.add_user(user, avatar.id)
         # END ON USER CONNECT
 

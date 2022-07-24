@@ -52,9 +52,9 @@ class EventDataOnTick(EventData):
     cur_time : float
 
 def help(game : "Game", user : uuid.UUID):
-    game.io.add_output("HELP")
+    game.interface.send_to(user, "HELP")
     for cmd in Game._default_commands:
-        game.io.add_output(f"{cmd} | {Game._default_commands[cmd][0]}")
+        game.interface.send_to(user, f"{cmd} | {Game._default_commands[cmd][0]}")
     # tbl = Table(title="Commands")
     # tbl.add_column("Command", justify="center", style="bright_cyan")
     # tbl.add_column("Description", justify="center")
@@ -66,7 +66,7 @@ def exit_game(game : "Game"):
     game.exit = True
 
 def show_skills(game : "Game", user):
-    player : GameObject = game.game_objects[game.player_id]
+    player : GameObject = game.game_objects[user]
     # tbl = Table(title="Skills")
     # tbl.add_column("Skill", justify="center", style="bright_cyan")
     # tbl.add_column("Description", justify="center")
