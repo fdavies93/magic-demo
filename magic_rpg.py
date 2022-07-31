@@ -1,38 +1,15 @@
 from dataclasses import dataclass, asdict
 import uuid
+from objects import GameObject, Reaction, Skill
 from typing import Callable, Iterable, Union, Any
 from curses import wrapper
 from interfaces.CursesIO import CursesIO
 from interfaces.NetIO import NetIO
 from interfaces.magic_io import RichText, COLOR
 from copy import deepcopy
+from enum import IntEnum
 import time
 import asyncio
-
-class GameObject:
-    def __init__(self, id = None):
-        self.id : str = str(uuid.uuid4())
-        if id != None:
-            self.id = id
-        self.states : dict = dict() # keys strings to some other data, usually attached / managed by skills
-        self.skills : set = set() # set of *ids* of available skills
-        self.reactions : set = set() # set of *ids* of reactions
-        self.on_tick = None
-
-class Skill:
-    def __init__(self, name : str, description : str = "Some skill.", synonyms : list[str] = [], on_parsed : Callable[["Game", list[str], str], Any] = None):
-        self.id : uuid.UUID = uuid.uuid4()
-        self.name : str = name
-        self.description : str = description
-        self.synonyms : str = synonyms
-        self.on_parsed = on_parsed
-
-class Reaction:
-    def __init__(self, name : str, reaction_to : str, handle):
-        self.name : str = name
-        self.id : str = uuid.uuid4()
-        self.reacting_to : str = reaction_to # id, not name
-        self.callback = handle
 
 class Script:
     def __init__(self, name : str, callback : Callable[["Game", str, "EventData"], str]):
@@ -152,12 +129,17 @@ class Game:
             "objects": [x for x in map( lambda obj : self.obj_to_dict(obj), self.game_objects.values())]
         }
 
+    def obj_from_dict(self, data : dict) -> GameObject:
+        new_obj = GameObject(data.get("id"))
+        new_obj.states = data.get("state")
+        self.imbue_reactions(new_obj, data.get("reactions"))
+        self.imbue_skills(new_obj, data.get("skills"))
+        return new_obj
+
     def load_state(self, state_obj : dict):
+        # should probably suspend all operations and clear state first... 
         for obj in state_obj.get("objects"):
-            new_obj = GameObject(obj.get("id"))
-            new_obj.states = obj.get("state")
-            self.imbue_reactions(new_obj, obj.get("reactions"))
-            self.imbue_skills(new_obj, obj.get("skills"))
+            new_obj = self.obj_from_dict(obj) 
             self.add_object(new_obj)
 
         for ev, listeners in state_obj.get("listeners").items():
@@ -224,6 +206,7 @@ class Game:
     def imbue_skill(self, obj : GameObject, skill : str):
         skill_id = self.get_skill_id(skill)
         obj.skills.add(skill_id)
+        self.interface.update_user(self.obj_to_dict(obj))
 
     def imbue_skills(self, obj : GameObject, skills : Iterable[str]):
         for skill in skills:
@@ -232,6 +215,7 @@ class Game:
     def imbue_reaction(self, obj : GameObject, reaction : str):
         reaction_obj = self.get_reactions_by_name(reaction)[0]
         obj.reactions.add(reaction_obj.id)
+        self.interface.update_user(self.obj_to_dict(obj))
 
     def imbue_reactions(self, obj : GameObject, reactions : Iterable[str]):
         for reaction in reactions:
@@ -315,8 +299,7 @@ class Game:
     
     def tick_sync(self):
         self.game_time += self.tick_time
-        for id in self.on_tick_listeners:
-            self.game_objects.get(id).on_tick(self, self.game_time, id)
+        self.call_event("tick", EventDataOnTick(self.game_time))
         # raw = input("> ")
         self.io.poll()
         next_input = self.io.pop_input()

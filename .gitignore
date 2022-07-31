@@ -4,6 +4,7 @@ log
 logs/
 
 last_quit.json
+users.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

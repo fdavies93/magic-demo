@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass, asdict
 from multiprocessing.sharedctypes import Value
 from types import NoneType
+import bcrypt
 import websockets
 import json
 from typing import Any, Union
@@ -18,6 +19,7 @@ connected = set()
 shutdown = False
 to_send : asyncio.Queue["SendWrapper"] = asyncio.Queue()
 gm = Game(0.5)
+user_data : dict[str, "UserData"] = dict()
 
 @dataclass
 class Output:
@@ -33,6 +35,12 @@ class SendData:
 class SendWrapper:
     user : str
     data : SendData
+
+@dataclass
+class UserData:
+    name : str
+    pass_hash : str
+    data : dict
 
 async def parse(event, user):
     if event.get("type") == None:
@@ -67,18 +75,49 @@ async def send_message_all(msg):
     for user in JOIN:
         await to_send.put(SendWrapper(user, SendData("output", output)))
 
+def load_user_data(filepath):
+    with open(filepath, "r", encoding="utf-8") as f:
+        data = json.load(f)    
+        for user in data:
+            username = user.get("name")
+            
+            if username == None:
+                continue
+
+            user_data[username] = UserData(username, user.get("pass_hash"), user.get("data"))
+
+def update_user_data(name, new_data):
+    # this is an update function; don't allow creation of arbitrary data
+    user = user_data.get(name)
+    if user == None:
+        return
+    user.data = new_data    
+
+def save_user_data(filepath):
+    users = []
+    for user in user_data.values():
+        users.append(asdict(user))
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(users, f)
+
 async def game_loop():
     # net_io = NetIO(gm.parse, send_message_to)
-    print(net_io)
-    gm.set_interface(net_io)
-    print("Loading game state.")
-    game_state_load(gm, "last_quit.json")
-    print("Starting main game loop.")
-    # game_setup(gm) # should probably hook into game.before_first_tick
-    while not shutdown:
-        await gm.tick()
+    try:
+        print(net_io)
+        gm.set_interface(net_io)
+        print("Loading game state.")
+        load_user_data("users.json")
+        game_state_load(gm, "last_quit.json")
+        print("Starting main game loop.")
+        # game_setup(gm) # should probably hook into game.before_first_tick
+        while not shutdown:
+            await gm.tick()
+    finally:
+        save_user_data("users.json")
 
-net_io : NetIO = NetIO(gm.parse, send_message_to)
+net_io : NetIO = NetIO(gm.parse, send_message_to, update_user_data)
+# on receive a message -> send to game to be parsed
+# on output -> add message to send loop
 
 async def send_loop():
     while not shutdown:
@@ -98,10 +137,34 @@ async def handler(websocket):
 
         assert event["type"] == "connect"
 
-        user = event["user"]
+        user : str = event["user"]
+        passwd : str = event["pass"]
 
         if user in JOIN:
             await send_message_websocket(websocket, f"Username {user} already exists on this server, please try logging on again with a different username.")
+            await websocket.send(json.dumps(asdict(SendData("disconnect", None))))
+            raise ValueError
+
+        user_obj = user_data.get(user)
+
+        if user_obj == None:
+            room = get_first_with_name(gm, "Room")
+
+            avatar = GameObject()
+            gm.imbue_reactions(avatar, {"listen_can_hear", "look_visible"})
+            gm.imbue_skills(avatar, {"look", "go", "say"})
+            
+            avatar.states = { "name": user, "description": f"Avatar for {user}.", "location": room[0].id }
+
+            user_obj = UserData(user, bcrypt.hashpw(passwd.encode(), bcrypt.gensalt()).decode(), gm.obj_to_dict(avatar))
+
+            # add user data
+            user_data[user] = user_obj
+
+        elif bcrypt.checkpw(passwd.encode(), user_obj.pass_hash.encode()):
+            avatar = gm.obj_from_dict(user_obj.data)
+        else:
+            await send_message_websocket(websocket, f"Password incorrect, please try again.")
             await websocket.send(json.dumps(asdict(SendData("disconnect", None))))
             raise ValueError
 
@@ -113,14 +176,16 @@ async def handler(websocket):
 
         await send_message_all(RichText(f"Welcome to the server, {user}.", color=1, bold=True))
 
-        # create player object in server
-        room = get_first_with_name(gm, "Room")
-        avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
+        # # create player object in server
+        # room = get_first_with_name(gm, "Room")
+        # avatar : GameObject = create_object(gm, user, f"Avatar for {user}.", room[0].id)
 
-        avatar.states["admin"] = True
+        # avatar.states["admin"] = True
 
-        gm.imbue_reactions(avatar, {"listen_can_hear","look_visible"})
-        gm.imbue_skills(avatar, {"look", "go", "create", "destroy", "set", "list", "imbue", "inspect"})
+        # gm.imbue_reactions(avatar, {"listen_can_hear","look_visible"})
+        # gm.imbue_skills(avatar, {"look", "go", "say", "create", "destroy", "set", "list", "imbue", "inspect"})
+
+        gm.add_object(avatar)
 
         net_io.add_user(user, avatar.id)
         # END ON USER CONNECT

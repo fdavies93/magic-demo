@@ -42,8 +42,8 @@ async def exit_game(client : "Client", args):
     client.exit = True
 
 async def connect(client : "Client", args):
-    if len(args) < 3:
-        client.io.add_output("Usage: connect URI USERNAME")
+    if len(args) < 4:
+        client.io.add_output("Usage: connect URI USERNAME PASSWORD")
         return
 
     if client.connection != None:
@@ -56,7 +56,7 @@ async def connect(client : "Client", args):
         connection = await ws.connect(args[1])
         client.connection = connection
         client.cur_user = args[2]
-        await client.connection.send(json.dumps({ "type": "connect", "user": args[2] }))
+        await client.connection.send(json.dumps({ "type": "connect", "user": args[2], "pass": args[3] }))
         client.io.add_output(f"Connected to {args[1]} successfully.")
         asyncio.create_task(client.receive_message())
     except:
